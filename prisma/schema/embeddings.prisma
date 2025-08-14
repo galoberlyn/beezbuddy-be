@@ -1,0 +1,11 @@
+model Embeddings {
+  id        String                @id @default(uuid())
+  content   String // The original text content
+  embedding Unsupported("vector") // The vector embedding using pgvector
+  metadata  Json? // Flexible metadata storage (source, type, etc.)
+  createdAt DateTime              @default(now())
+
+  @@index([createdAt])
+  @@map("embeddings")
+  @@schema("ai")
+}

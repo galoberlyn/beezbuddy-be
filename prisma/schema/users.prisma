@@ -1,0 +1,17 @@
+model User {
+  id             String         @id @default(uuid())
+  firebaseId     String         @unique
+  firstName      String
+  roleId         String
+  role           Role           @relation(fields: [roleId], references: [id])
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  lastName       String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  conversations  Conversation[]
+
+  @@index([id, firebaseId, roleId])
+  @@map("users")
+  @@schema("core")
+}
