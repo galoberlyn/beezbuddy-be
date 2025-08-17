@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
 
 @Injectable()
-export class ConversationRepository {
+export class ConversationsRepository {
   constructor(private readonly databaseService: DatabaseService) {}
 
   findByUserId(userId: string) {
@@ -16,12 +16,13 @@ export class ConversationRepository {
       take: 10,
     });
   }
-  create(userId: string, question: string, answer: string) {
+  create(userId: string, question: string, answer: string, agentId: string) {
     return this.databaseService.conversation.create({
       data: {
         userId,
         question,
         answer,
+        agentId,
       },
     });
   }

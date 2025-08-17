@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { QueryController } from './query.controller';
 import { QueryService } from './query.service';
 import { AiModelsService } from 'src/ai-models/ai-models.service';
-import { ConversationRepository } from 'src/conversations/coversations.repository';
+import { ConversationsRepository } from 'src/conversations/coversations.repository';
 import { StrategyFactory } from 'src/ai-models/strategies/strategy-factory';
 import { DatabaseService } from 'src/database/database.service';
 
@@ -11,7 +11,7 @@ import { DatabaseService } from 'src/database/database.service';
   providers: [
     QueryService,
     AiModelsService,
-    ConversationRepository,
+    ConversationsRepository,
     StrategyFactory,
     DatabaseService,
   ],

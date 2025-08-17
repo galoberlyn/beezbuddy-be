@@ -12,6 +12,7 @@ import { S3Module } from './aws/s3/s3.module';
 import { LangchainModule } from './langchain/langchain.module';
 import { QueryModule } from './query/query.module';
 import { ConversationModule } from './conversations/conversations.module';
+import { EmbeddingModule } from './embeddings/embedding.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ConversationModule } from './conversations/conversations.module';
     LangchainModule,
     QueryModule,
     ConversationModule,
+    EmbeddingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

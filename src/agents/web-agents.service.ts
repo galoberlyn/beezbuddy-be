@@ -1,4 +1,9 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateWebsiteAgentDto } from './dto/create-website-agent.dto';
 import { S3Service } from 'src/aws/s3/s3.service';
 import { AiModelsService } from 'src/ai-models/ai-models.service';
@@ -8,6 +13,7 @@ import { AgentType } from '@prisma/client';
 import { AgentRepository } from './agent.repository';
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { EmbeddingRepository } from 'src/embeddings/embedding.repository';
 
 const s3Client = new S3Client({
   region: 'us-east-1',
@@ -24,6 +30,7 @@ export class WebAgentsService {
     private readonly aiModelService: AiModelsService,
     private readonly langchainService: LangchainService,
     private readonly agentRepository: AgentRepository,
+    private readonly embeddingRepository: EmbeddingRepository,
   ) {}
   logger = new Logger(WebAgentsService.name);
 
@@ -179,6 +186,24 @@ export class WebAgentsService {
 
     return agentsWithAvatars;
   }
+
+  async getWebsiteAgent(id: string, orgId: string) {
+    const agent = await this.agentRepository.findById(id, orgId);
+
+    if (!agent) {
+      throw new NotFoundException('Agent not found');
+    }
+    const embedding = await this.embeddingRepository.findByAgentId(agent?.id);
+
+    const content = embedding.map(e => e.content).join('\n');
+
+    return {
+      ...agent,
+      freeText: content,
+    };
+  }
+
+  // updateWebsiteAgent(id: string, body: any, orgId: string) {}
 
   private validateRequiredFields(formData: any): void {
     if (!formData.agentName || typeof formData.agentName !== 'string') {

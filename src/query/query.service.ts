@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AiModelsService } from 'src/ai-models/ai-models.service';
-import { ConversationRepository } from 'src/conversations/coversations.repository';
+import { ConversationsRepository } from 'src/conversations/coversations.repository';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { RunnableSequence } from '@langchain/core/runnables';
 import { StringOutputParser } from '@langchain/core/output_parsers';
@@ -12,10 +12,15 @@ export class QueryService {
 
   constructor(
     private readonly aiModelService: AiModelsService,
-    private readonly conversationRepository: ConversationRepository,
+    private readonly conversationRepository: ConversationsRepository,
   ) {}
 
-  async ask(question: string, organizationId: string, userId: string) {
+  async askTest(
+    question: string,
+    organizationId: string,
+    userId: string,
+    agentId: string,
+  ) {
     // Ensure strategy is set so vector store uses correct per-model table
     if (process.env.NODE_ENV !== 'production') {
       console.log('Switching to OLLAMA');
@@ -26,11 +31,10 @@ export class QueryService {
       k: 4,
       filter: {
         organization_id: organizationId,
+        agent_id: agentId,
       } as any,
     });
-    console.log('Retrieving docs', question);
     const retrievedDocs = await retriever.invoke(question);
-    console.log(retrievedDocs);
 
     const llmContext = retrievedDocs;
 
@@ -74,7 +78,7 @@ export class QueryService {
       question,
     });
 
-    await this.conversationRepository.create(userId, question, answer);
+    await this.conversationRepository.create(userId, question, answer, agentId);
 
     return {
       message: 'Query successful',

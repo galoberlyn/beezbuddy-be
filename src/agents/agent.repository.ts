@@ -19,4 +19,13 @@ export class AgentRepository {
       },
     });
   }
+
+  findById(id: string, orgId: string): Promise<Agents | null> {
+    return this.databaseService.agents.findUnique({
+      where: {
+        id,
+        organizationId: orgId,
+      },
+    });
+  }
 }

@@ -7,6 +7,7 @@ import { StrategyFactory } from 'src/ai-models/strategies/strategy-factory';
 import { LangchainService } from 'src/langchain/langchain.service';
 import { AgentRepository } from './agent.repository';
 import { DatabaseService } from 'src/database/database.service';
+import { EmbeddingRepository } from 'src/embeddings/embedding.repository';
 
 @Module({
   controllers: [WebAgentsController],
@@ -18,6 +19,7 @@ import { DatabaseService } from 'src/database/database.service';
     LangchainService,
     AgentRepository,
     DatabaseService,
+    EmbeddingRepository,
   ],
 })
 export class WebAgentsModule {}

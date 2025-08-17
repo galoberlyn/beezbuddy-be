@@ -1,0 +1,10 @@
+model AgentDocuments {
+  id           String   @id @default(uuid())
+  agentId      String
+  documentLink String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("agent_documents")
+  @@schema("ai")
+}
