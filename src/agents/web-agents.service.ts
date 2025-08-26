@@ -51,23 +51,25 @@ export class WebAgentsService {
 
     // Extract knowledge base data
     createWebsiteAgentDto.knowledgeBase = {
+      type: formData.type,
       freeText: formData['knowledgeBase.freeText'] as string,
-      links: this.parseLinks(formData),
+      links: formData.type === 'links' ? this.parseLinks(formData) : [],
       documents: [],
     };
 
     // Process uploaded files
-    if (files && files.length > 0) {
-      const avatar = files.find(file => file.fieldname === 'avatar');
+    if (formData.type === 'documents') {
       const documents = files.filter(
         file => file.fieldname === 'knowledgeBase.documents',
       );
-
-      if (avatar) {
-        createWebsiteAgentDto.avatar = avatar;
-      }
       if (documents.length > 0) {
         createWebsiteAgentDto.knowledgeBase.documents = documents;
+      }
+    }
+    if (files && files.length > 0) {
+      const avatar = files.find(file => file.fieldname === 'avatar');
+      if (avatar) {
+        createWebsiteAgentDto.avatar = avatar;
       }
     }
     return this.create(createWebsiteAgentDto, organization);

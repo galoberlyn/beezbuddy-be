@@ -2,6 +2,13 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class KnowledgeBaseDto {
   @ApiProperty({
+    description: 'The source type of the knowledge base',
+    type: String,
+    required: false,
+  })
+  type: string;
+
+  @ApiProperty({
     description: 'Array of links',
     type: [String],
     required: false,

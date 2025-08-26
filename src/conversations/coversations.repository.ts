@@ -5,10 +5,11 @@ import { DatabaseService } from 'src/database/database.service';
 export class ConversationsRepository {
   constructor(private readonly databaseService: DatabaseService) {}
 
-  findByUserId(userId: string) {
+  findByUserId(userId: string, agentId: string) {
     return this.databaseService.conversation.findMany({
       where: {
         userId,
+        agentId,
       },
       orderBy: {
         createdAt: 'desc',

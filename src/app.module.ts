@@ -13,6 +13,7 @@ import { LangchainModule } from './langchain/langchain.module';
 import { QueryModule } from './query/query.module';
 import { ConversationModule } from './conversations/conversations.module';
 import { EmbeddingModule } from './embeddings/embedding.module';
+import { WebChatModule } from './public/web-chat/web-chat.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { EmbeddingModule } from './embeddings/embedding.module';
     QueryModule,
     ConversationModule,
     EmbeddingModule,
+    WebChatModule,
   ],
   controllers: [AppController],
   providers: [AppService],

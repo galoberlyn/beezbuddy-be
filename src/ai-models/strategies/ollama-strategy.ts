@@ -24,7 +24,7 @@ export class OllamaStrategy implements AIModelStrategy {
         this.isInitialized = true;
         this.logger.log('Models initialized');
       })
-      .catch((error) => this.logger.error('Error initializing models:', error));
+      .catch(error => this.logger.error('Error initializing models:', error));
   }
 
   private async initializeModels(): Promise<void> {
@@ -100,7 +100,7 @@ export class OllamaStrategy implements AIModelStrategy {
     const maxAttempts = 30; // 30 seconds timeout
 
     while (!this.isInitialized && attempts < maxAttempts) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       attempts++;
     }
 

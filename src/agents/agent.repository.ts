@@ -26,6 +26,10 @@ export class AgentRepository {
         id,
         organizationId: orgId,
       },
+      include: {
+        conversations: true,
+        authorizedDomains: true,
+      },
     });
   }
 }
