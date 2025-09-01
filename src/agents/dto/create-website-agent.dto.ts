@@ -23,8 +23,8 @@ export class KnowledgeBaseDto {
   })
   documents?: Express.Multer.File[];
 
-  @ApiProperty({ description: 'Free text content' })
-  freeText: string;
+  @ApiProperty({ description: 'Free text content', required: false })
+  freeText?: string;
 }
 
 export class CreateWebsiteAgentDto {
@@ -38,6 +38,13 @@ export class CreateWebsiteAgentDto {
     required: false,
   })
   avatar?: Express.Multer.File;
+
+  @ApiProperty({
+    description: 'links | documents | plaintext',
+    type: String,
+    required: false,
+  })
+  type?: string;
 
   @ApiProperty({
     description: 'The knowledge base of the agent',

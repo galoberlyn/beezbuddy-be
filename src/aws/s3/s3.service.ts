@@ -26,6 +26,11 @@ export class S3Service {
       throw new Error('AWS credentials are not properly configured');
     }
 
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Not in prod, returning sample url');
+      return `https://sample.com/${file.originalname}`;
+    }
+
     try {
       const key = `${organizationId}/${folderPath}${file.originalname}`;
 

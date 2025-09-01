@@ -66,7 +66,7 @@ export class OllamaStrategy implements AIModelStrategy {
       columns: {
         idColumnName: 'id',
         vectorColumnName: 'embedding',
-        contentColumnName: 'content',
+        contentColumnName: 'text',
         metadataColumnName: 'metadata',
       },
     });

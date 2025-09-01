@@ -14,6 +14,7 @@ import { QueryModule } from './query/query.module';
 import { ConversationModule } from './conversations/conversations.module';
 import { EmbeddingModule } from './embeddings/embedding.module';
 import { WebChatModule } from './public/web-chat/web-chat.module';
+import { N8nModule } from './n8n/n8n.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { WebChatModule } from './public/web-chat/web-chat.module';
     ConversationModule,
     EmbeddingModule,
     WebChatModule,
+    N8nModule,
   ],
   controllers: [AppController],
   providers: [AppService],

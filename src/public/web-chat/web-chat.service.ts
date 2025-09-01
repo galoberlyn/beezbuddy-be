@@ -31,6 +31,7 @@ export class WebChatService {
     if (!agent) {
       throw new NotFoundException('Agent not found');
     }
+    console.log('Agent', agent);
     const host = req.get('host');
     if (!host) {
       throw new BadRequestException('Host not found');
@@ -41,7 +42,7 @@ export class WebChatService {
       authorizedDomain => authorizedDomain.domain === domain,
     );
 
-    if (!isAuthorized) {
+    if (!isAuthorized && process.env.NODE_ENV == 'production') {
       throw new UnauthorizedException('Unauthorized domain');
     }
 
@@ -54,15 +55,12 @@ export class WebChatService {
     const retriever = vectorStore.asRetriever({
       k: 4,
       filter: {
-        organization_id: orgId,
-        agent_id: agentId,
+        organizationId: orgId,
+        agentId: agentId,
       },
     });
 
     const llmContext = await retriever.invoke(createWebChatDto.question);
-
-    console.log(llmContext);
-
     const prompt = ChatPromptTemplate.fromMessages([
       [
         'system',

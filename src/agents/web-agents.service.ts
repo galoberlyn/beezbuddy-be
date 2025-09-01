@@ -3,17 +3,21 @@ import {
   Logger,
   BadRequestException,
   NotFoundException,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { CreateWebsiteAgentDto } from './dto/create-website-agent.dto';
 import { S3Service } from 'src/aws/s3/s3.service';
 import { AiModelsService } from 'src/ai-models/ai-models.service';
 import { ModelType } from 'src/ai-models/strategies/strategy-factory';
 import { LangchainService } from 'src/langchain/langchain.service';
-import { AgentType } from '@prisma/client';
+import { Agents, AgentType, Prisma } from '@prisma/client';
 import { AgentRepository } from './agent.repository';
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { EmbeddingRepository } from 'src/embeddings/embedding.repository';
+import { N8nService } from 'src/n8n/n8n.service';
+import puppeteer from 'puppeteer';
 
 const s3Client = new S3Client({
   region: 'us-east-1',
@@ -31,6 +35,7 @@ export class WebAgentsService {
     private readonly langchainService: LangchainService,
     private readonly agentRepository: AgentRepository,
     private readonly embeddingRepository: EmbeddingRepository,
+    private readonly n8nService: N8nService,
   ) {}
   logger = new Logger(WebAgentsService.name);
 
@@ -48,17 +53,21 @@ export class WebAgentsService {
     // Extract text fields
     createWebsiteAgentDto.agentName = formData.agentName as string;
     createWebsiteAgentDto.persona = formData.persona as string;
+    createWebsiteAgentDto.type = formData['knowledgeBase.type'];
 
     // Extract knowledge base data
     createWebsiteAgentDto.knowledgeBase = {
-      type: formData.type,
+      type: formData['knowledgeBase.type'],
       freeText: formData['knowledgeBase.freeText'] as string,
-      links: formData.type === 'links' ? this.parseLinks(formData) : [],
+      links:
+        formData['knowledgeBase.type'] === 'links'
+          ? this.parseLinks(formData)
+          : [],
       documents: [],
     };
 
     // Process uploaded files
-    if (formData.type === 'documents') {
+    if (createWebsiteAgentDto.type === 'documents') {
       const documents = files.filter(
         file => file.fieldname === 'knowledgeBase.documents',
       );
@@ -79,9 +88,7 @@ export class WebAgentsService {
     if (process.env.NODE_ENV !== 'production') {
       this.aiModelService.switchStrategy(ModelType.OLLAMA);
     }
-    const vectorStore = await this.aiModelService.getVectorStore();
     let s3Url: string | null = null;
-    const documentUrls: string[] = [];
 
     // Upload avatar to s3, get the link
     if (data.avatar) {
@@ -98,7 +105,7 @@ export class WebAgentsService {
     }
 
     // TODO: wrap this in a transaction so we can revert
-    const agent = await this.agentRepository.create({
+    const agentPayload: Prisma.AgentsCreateInput = {
       name: data.agentName,
       type: AgentType.website,
       avatar: s3Url,
@@ -108,40 +115,53 @@ export class WebAgentsService {
         },
       },
       persona: data.persona,
-    });
+    };
 
-    /**
-     * TODO support only pdf/txt/doc/excel?
-     */
-    if (data.knowledgeBase.documents) {
-      const documentUploads = await Promise.all(
-        data.knowledgeBase.documents.map((document: Express.Multer.File) =>
-          this.s3Service.uploadFile(
-            document,
-            organization,
-            `${organization}/documents/`,
-          ),
-        ),
-      );
-      if (documentUploads) {
-        documentUrls.push(...documentUploads);
+    if (data.type === 'links' && data.knowledgeBase.links) {
+      agentPayload.links = {
+        createMany: {
+          data: data.knowledgeBase.links.map(link => ({ link })),
+        },
+      };
+    }
+
+    const agent = await this.agentRepository.create(agentPayload);
+
+    if (data.type === 'documents') {
+      if (data.knowledgeBase.documents) {
+        const documentUrls = await this.processDocumentIngestion(
+          data,
+          organization,
+          agent,
+        );
+        console.log('documentUrls', documentUrls);
+      } else {
+        throw new BadRequestException('No documents provided');
       }
     }
 
-    if (data.knowledgeBase.freeText) {
-      try {
-        const freeTextDocs = await this.langchainService.textToDocs(
-          data.knowledgeBase.freeText,
-          organization,
-          agent.id,
-        );
+    if (data.type === 'plaintext') {
+      if (data.knowledgeBase.freeText) {
+        await this.processPlainTextIngestion(data, organization, agent);
+      } else {
+        throw new BadRequestException('No knowledge base provided');
+      }
+    }
 
-        await vectorStore.addDocuments(freeTextDocs, {
-          ids: freeTextDocs.map(doc => doc.metadata.id),
-        });
-      } catch (error) {
-        this.logger.error('Failed to add documents to vector store:', error);
-        throw error;
+    if (data.type === 'links') {
+      if (data.knowledgeBase.links) {
+        const links = data.knowledgeBase.links;
+        try {
+          await this.processLinksIngestion(links, organization, agent, true);
+        } catch (e) {
+          console.log('Error:', e);
+          throw new HttpException(
+            'Provided link is not a valid URL',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+      } else {
+        throw new BadRequestException('No links provided');
       }
     }
 
@@ -197,7 +217,7 @@ export class WebAgentsService {
     }
     const embedding = await this.embeddingRepository.findByAgentId(agent?.id);
 
-    const content = embedding.map(e => e.content).join('\n');
+    const content = embedding.map(e => e.text).join('\n');
 
     return {
       ...agent,
@@ -216,15 +236,6 @@ export class WebAgentsService {
 
     if (!formData.persona || typeof formData.persona !== 'string') {
       throw new BadRequestException('persona is required and must be a string');
-    }
-
-    if (
-      !formData['knowledgeBase.freeText'] ||
-      typeof formData['knowledgeBase.freeText'] !== 'string'
-    ) {
-      throw new BadRequestException(
-        'knowledgeBase.freeText is required and must be a string',
-      );
     }
   }
 
@@ -246,5 +257,112 @@ export class WebAgentsService {
     });
 
     return links.filter(link => link);
+  }
+
+  private async processDocumentIngestion(
+    data: CreateWebsiteAgentDto,
+    organization: string,
+    agent: Agents,
+  ) {
+    const documentUrls: string[] = [];
+    console.log(data);
+
+    if (data.knowledgeBase.documents) {
+      // Upload documents to S3
+      try {
+        const documentUploads = await Promise.all(
+          data.knowledgeBase.documents.map((document: Express.Multer.File) =>
+            this.s3Service.uploadFile(
+              document,
+              organization,
+              `${organization}/documents/`,
+            ),
+          ),
+        );
+        if (documentUploads) {
+          documentUrls.push(...documentUploads);
+        }
+      } catch (error) {
+        this.logger.error('Failed to upload documents to S3:', error);
+        throw error;
+      }
+
+      try {
+        await this.n8nService.ingestDocument({
+          files: data.knowledgeBase.documents,
+          agentId: agent.id,
+          organizationId: organization,
+        });
+        return documentUrls;
+      } catch (error) {
+        this.logger.error('Failed to ingest documents:', error);
+        throw error;
+      }
+    }
+  }
+
+  private async processPlainTextIngestion(
+    data: CreateWebsiteAgentDto,
+    organization: string,
+    agent: Agents,
+  ) {
+    await this.n8nService.ingestPlainText({
+      data: data.knowledgeBase.freeText || '',
+      agentId: agent.id,
+      organizationId: organization,
+    });
+  }
+
+  private async processLinksIngestion(
+    links: string[],
+    organization: string,
+    agent: Agents,
+    isSPA: boolean,
+  ) {
+    if (isSPA) {
+      const browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      });
+
+      for (const link of links) {
+        const page = await browser.newPage();
+        console.log('New page created');
+        await page.setDefaultTimeout(30000);
+        console.log('Set default timeout');
+        await page.setUserAgent(
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        );
+        try {
+          console.log('Going to link:', link);
+          await page.goto(link, { waitUntil: 'networkidle2' });
+          const html = await page.content();
+          await browser.close();
+
+          await this.n8nService.ingestLinks({
+            html,
+            agentId: agent.id,
+            organizationId: organization,
+          });
+        } catch (error) {
+          this.logger.error('Failed to get HTML for link: ' + link, error);
+          throw new HttpException(
+            'Provided link is not a valid URL',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+      }
+    } else {
+      this.logger.log('Not SPA, skipping puppeteer');
+      const resp = await fetch(links[0], {
+        method: 'GET',
+      });
+      const html = await resp.text();
+      await this.n8nService.ingestLinks({
+        html,
+        agentId: agent.id,
+        organizationId: organization,
+      });
+    }
   }
 }

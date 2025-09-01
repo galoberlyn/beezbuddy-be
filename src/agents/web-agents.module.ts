@@ -8,6 +8,7 @@ import { LangchainService } from 'src/langchain/langchain.service';
 import { AgentRepository } from './agent.repository';
 import { DatabaseService } from 'src/database/database.service';
 import { EmbeddingRepository } from 'src/embeddings/embedding.repository';
+import { N8nService } from 'src/n8n/n8n.service';
 
 @Module({
   controllers: [WebAgentsController],
@@ -20,6 +21,7 @@ import { EmbeddingRepository } from 'src/embeddings/embedding.repository';
     AgentRepository,
     DatabaseService,
     EmbeddingRepository,
+    N8nService,
   ],
 })
 export class WebAgentsModule {}
