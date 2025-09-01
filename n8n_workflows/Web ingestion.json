@@ -1,0 +1,446 @@
+{
+  "name": "Web ingestion",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const cheerio = require('cheerio');\nconst html = $('Web Ingest').first().json.body.html\nconst ch = cheerio.load(html);\n    \n\n// Remove only script and style tags (they don't contain meaningful text)\nch(\"script, style, noscript\").remove();\n\n// Get text from body and clean it up\nlet text = ch(\"body\").text();\n\n// Clean up whitespace and normalize text\ntext = text\n  .replace(/\\s+/g, ' ')           // Replace multiple whitespace with single space\n  .replace(/\\n\\s*\\n/g, '\\n')      // Remove empty lines\n  .trim();                        // Remove leading/trailing whitespace\n\nreturn [{\n  json: {\n    content: text,\n    url: $(\"Web Ingest\").first().json.body.url,\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1140,
+        160
+      ],
+      "id": "4cd4ff3c-3918-4c89-a454-bf6d948f46ac",
+      "name": "Parse Static HTML"
+    },
+    {
+      "parameters": {
+        "jsCode": "const chunkSize = 1000;\nconst chunkOverlap = 200;\n//const text = $node[\"ABC\"].json.data.replace(/\\n/, '');\nconst text = $(\"Parse Static HTML\").first().json.content;\nconst url = $(\"Parse Static HTML\").first().json.url;\n\nconst chunks = [];\nlet remainingText = text;\n\nwhile (remainingText.length > 0) {\n    let splitPoint;\n\n    // Try splitting at paragraph level first\n    splitPoint = remainingText.lastIndexOf(\"\\n\\n\", chunkSize);\n    \n    // If no paragraph split, try splitting at sentence level\n    if (splitPoint === -1) {\n        splitPoint = remainingText.lastIndexOf(\". \", chunkSize);\n    }\n\n    // If no sentence split, try splitting at word level\n    if (splitPoint === -1) {\n        splitPoint = remainingText.lastIndexOf(\" \", chunkSize);\n    }\n\n    // If still no split point, force cut at chunkSize\n    if (splitPoint === -1 || splitPoint < chunkSize * 0.5) {  \n        splitPoint = chunkSize; // Hard split if no good split point\n    }\n\n    // Extract chunk and adjust remaining text with overlap\n    let chunk = remainingText.substring(0, splitPoint).trim();\n    chunks.push(chunk);\n\n    // Move the pointer forward while keeping the overlap\n    remainingText = remainingText.substring(Math.max(0, splitPoint - chunkOverlap)).trim();\n\n    // Break if remaining text is too small to form another chunk\n    if (remainingText.length < chunkSize * 0.2) {\n        chunks.push(remainingText);\n        break;\n    }\n}\n\nreturn { chunks };"
+      },
+      "id": "214e9bc0-a7a5-43d1-88b5-643325b3ba38",
+      "name": "splitIntoChunksWeb",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        20,
+        340
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "chunks",
+        "options": {
+          "destinationFieldName": "chunk"
+        }
+      },
+      "id": "42cdc84d-9ed3-4a90-8a6e-dcedc7143472",
+      "name": "splitWeb",
+      "type": "n8n-nodes-base.splitOut",
+      "position": [
+        240,
+        240
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "maxItems": 20
+      },
+      "id": "d1ec152b-7b9c-49a2-9b6a-1efd064fb818",
+      "name": "limitWeb",
+      "type": "n8n-nodes-base.limit",
+      "position": [
+        440,
+        220
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        660,
+        360
+      ],
+      "id": "d1ee3d92-860a-49c7-a425-ede6c234a721",
+      "name": "Ollama Chat Model1",
+      "credentials": {
+        "ollamaApi": {
+          "id": "v9rgcgOLa5Vrc0U2",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToSummarize": {
+          "values": [
+            {
+              "aggregation": "concatenate",
+              "field": "text",
+              "separateBy": "other",
+              "customSeparator": "###SPLIT###"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5dee480e-2c02-465f-82f8-54be381b2e5b",
+      "name": "Summarize1",
+      "type": "n8n-nodes-base.summarize",
+      "position": [
+        940,
+        300
+      ],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": "ai.embeddings",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1.3,
+      "position": [
+        1100,
+        40
+      ],
+      "id": "820cc89e-a170-4ada-aa4d-bfbd128940f7",
+      "name": "Postgres PGVector Store1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "qzq8SujQ8Rd6EyHh",
+          "name": "BeezBuddy DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "nomic-embed-text:v1.5"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1,
+      "position": [
+        1260,
+        440
+      ],
+      "id": "3686eb1a-6a0d-49dc-908f-9f4e7b2f2183",
+      "name": "Embeddings Ollama1",
+      "credentials": {
+        "ollamaApi": {
+          "id": "v9rgcgOLa5Vrc0U2",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $json.concatenated_text }}",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "title",
+                "value": "={{ $('Create Metadata Title & Description').item.json.output.title }}"
+              },
+              {
+                "name": "description",
+                "value": "={{ $('Create Metadata Title & Description').item.json.output.description }}"
+              },
+              {
+                "name": "agentId",
+                "value": "={{ $('Web Ingest').first().json.body.agentId }}"
+              },
+              {
+                "name": "organizationId",
+                "value": "={{ $('Web Ingest').first().json.body.organizationId }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "22117d0a-60bb-42c8-bdf0-6eb0c76efaa0",
+      "name": "Default Data Loader1",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "position": [
+        1460,
+        240
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "separator": "###SPLIT###"
+      },
+      "id": "393c9635-ce82-4ff8-86c9-29332c40e836",
+      "name": "Character Text Splitter",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
+      "position": [
+        1540,
+        400
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=<document> \n{{ $('Parse Static HTML').first().json.content }}\n</document> \n\nHere is the chunk we want to situate within the overall document:\n\n<chunk> \n{{ $json.chunk }}\n</chunk> \n\nPlease:\n- Provide a short and succinct **context** to situate this chunk within the document for improved search retrieval.\n- Return the **original chunk** exactly as provided unless a correction is necessary.\n- If the chunk contains an **incomplete number, percentage, or entity**, correct it using the full document.\n- If part of a **sentence is cut off**, reconstruct the missing words only if necessary for clarity.\n- If the chunk is part of a table, include the complete table entry to maintain data integrity\n- Do not add any additional explanations or formatting beyond the required output.\n\nFill in the following format:\n[succinct context] : [original chunk or corrected version if necessary]\n\nYour response should contain only the text that replaces these placeholders, without including the placeholder labels themselves."
+      },
+      "id": "3fdbf484-1300-4b7c-8337-44789c27cfb7",
+      "name": "processWebContext",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "position": [
+        620,
+        20
+      ],
+      "typeVersion": 1.6
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Create metadata title and metadata description based on the document specified below (below ##Document). Metadata title and metadata description will be used to seperate data in vector DB that will be used for RAG.\n\nNote: Do not output the schema or other non related data. Just output the JSON i mentioned\n\n##Document\n{{ $('Parse Static HTML').item.json.content }}",
+        "hasOutputParser": true
+      },
+      "id": "2d4d3855-f633-457b-b04a-92365d856e16",
+      "name": "Create Metadata Title & Description",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "position": [
+        -380,
+        200
+      ],
+      "typeVersion": 1.6
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmOllama",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        560
+      ],
+      "id": "18dd811d-3000-4a34-a6fc-e104e6173fac",
+      "name": "Ollama Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "v9rgcgOLa5Vrc0U2",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\"title\":\"\",\"description\":\"\"}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -60,
+        580
+      ],
+      "id": "4509052a-bd49-4b8e-a584-8364ffbec469",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "scrape",
+        "options": {}
+      },
+      "name": "Web Ingest",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1680,
+        240
+      ],
+      "id": "092a3453-1460-425f-8fe9-9835a113bd88",
+      "webhookId": "dbf986b9-f389-4c8b-873b-2999b3a24736",
+      "notes": "curl -X POST \"http://localhost:5678/webhook/scrape\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"url\": \"https://galogarlejo.dev\"}'\n"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Parse Static HTML": {
+      "main": [
+        [
+          {
+            "node": "Create Metadata Title & Description",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "splitIntoChunksWeb": {
+      "main": [
+        [
+          {
+            "node": "splitWeb",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "splitWeb": {
+      "main": [
+        [
+          {
+            "node": "limitWeb",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "limitWeb": {
+      "main": [
+        [
+          {
+            "node": "processWebContext",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "processWebContext",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize1": {
+      "main": [
+        [
+          {
+            "node": "Postgres PGVector Store1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Ollama1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Postgres PGVector Store1",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader1": {
+      "ai_document": [
+        [
+          {
+            "node": "Postgres PGVector Store1",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Character Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Default Data Loader1",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "processWebContext": {
+      "main": [
+        [
+          {
+            "node": "Summarize1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Create Metadata Title & Description",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Create Metadata Title & Description",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Metadata Title & Description": {
+      "main": [
+        [
+          {
+            "node": "splitIntoChunksWeb",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Web Ingest": {
+      "main": [
+        [
+          {
+            "node": "Parse Static HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d7d90984-132a-4f63-83ff-6814be2a1eea",
+  "meta": {
+    "instanceId": "36207d550658bbf91be2a7d3a9212d262b1fd84b34f51d4df4ed31a5096855d0"
+  },
+  "id": "c9x9HeafPXqNmELl",
+  "tags": [
+    {
+      "createdAt": "2025-08-28T23:25:12.564Z",
+      "updatedAt": "2025-08-28T23:25:12.564Z",
+      "id": "zVaBa15jhZUr2Ti4",
+      "name": "beezbuddy"
+    }
+  ]
+}
