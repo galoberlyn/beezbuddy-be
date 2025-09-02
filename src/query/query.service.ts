@@ -49,7 +49,6 @@ export class QueryService {
     );
     console.log('Conversation history', conversationHistory);
 
-    // TODO: prompt should come from database
     const prompt = ChatPromptTemplate.fromMessages([
       [
         'system',

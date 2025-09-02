@@ -118,7 +118,7 @@ export class WebAgentsService {
         createMany: {
           data: data.knowledgeBase.links.map(link => ({
             link: link.link,
-            isSpa: link.isSpa,
+            isSPA: link.isSpa,
           })),
         },
       };
@@ -235,7 +235,7 @@ export class WebAgentsService {
         tx.agentWebLinks.createMany({
           data: data.knowledgeBase.links.map(link => ({
             link: link.link,
-            isSpa: link.isSpa,
+            isSPA: link.isSpa,
             agentId: id,
           })),
         });

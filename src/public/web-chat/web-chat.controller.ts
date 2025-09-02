@@ -9,13 +9,20 @@ import { Request } from 'express';
 export class WebChatController {
   constructor(private readonly webChatService: WebChatService) {}
 
-  @Post('/:orgId/:agentId')
+  @Post('/:orgId/:agentId/:sessionId')
   create(
     @Param('agentId') agentId,
     @Param('orgId') orgId,
+    @Param('sessionId') sessionId,
     @Body() createWebChatDto: CreateWebChatDto,
     @Req() req: Request,
   ) {
-    return this.webChatService.create(agentId, orgId, createWebChatDto, req);
+    return this.webChatService.create(
+      agentId,
+      orgId,
+      sessionId,
+      createWebChatDto,
+      req,
+    );
   }
 }

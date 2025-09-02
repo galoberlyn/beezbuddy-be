@@ -1,0 +1,13 @@
+model PublicConversation {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sessionId String
+  question  String
+  answer    String
+  agentId   String
+  agent     Agents   @relation(fields: [agentId], references: [id])
+
+  @@map("public_conversations")
+  @@schema("ai")
+}

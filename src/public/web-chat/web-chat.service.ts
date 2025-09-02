@@ -12,18 +12,20 @@ import { AiModelsService } from 'src/ai-models/ai-models.service';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
 import { RunnableSequence } from '@langchain/core/runnables';
+import { PublicConversationsRepository } from '../conversations/public-conversations.repository';
 
 @Injectable()
 export class WebChatService {
   constructor(
     private readonly agentRepository: AgentRepository,
     private readonly aiModelService: AiModelsService,
+    private readonly publicConvoRepo: PublicConversationsRepository,
   ) {}
 
-  // @TODO: Add conversation history, maybe per session id??
   async create(
     agentId: string,
     orgId: string,
+    sessionId: string,
     createWebChatDto: CreateWebChatDto,
     req: Request,
   ) {
@@ -31,7 +33,7 @@ export class WebChatService {
     if (!agent) {
       throw new NotFoundException('Agent not found');
     }
-    console.log('Agent', agent);
+
     const host = req.get('host');
     if (!host) {
       throw new BadRequestException('Host not found');
@@ -61,6 +63,10 @@ export class WebChatService {
     });
 
     const llmContext = await retriever.invoke(createWebChatDto.question);
+    const conversationHistory = await this.getConversationHistory(
+      sessionId,
+      agentId,
+    );
     const prompt = ChatPromptTemplate.fromMessages([
       [
         'system',
@@ -75,6 +81,7 @@ export class WebChatService {
 
           Inputs you may rely on:
           - Context: {context}
+          - Conversation History (most recent first): {history}
 
           Direct answer first.`.trim(),
       ],
@@ -93,11 +100,30 @@ export class WebChatService {
       context: llmContext,
       brand_name: agent.organization.name,
       question: createWebChatDto.question,
+      history: conversationHistory,
     });
 
     return {
       message: 'Query successful',
       answer: answer,
     };
+  }
+
+  private async getConversationHistory(sessionId: string, agentId: string) {
+    const conversationHistory = await this.publicConvoRepo.findBySessionId(
+      sessionId,
+      agentId,
+    );
+
+    if (!conversationHistory) {
+      return '';
+    }
+
+    return conversationHistory
+      .map(
+        (c, index) =>
+          `Conversation ${index + 1}:\nHuman: ${c.question}\nAssistant: ${c.answer}`,
+      )
+      .join('\n\n');
   }
 }
