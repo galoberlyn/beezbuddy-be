@@ -5,6 +5,7 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { RunnableSequence } from '@langchain/core/runnables';
 import { StringOutputParser } from '@langchain/core/output_parsers';
 import { ModelType } from 'src/ai-models/strategies/strategy-factory';
+import { DatabaseService } from 'src/database/database.service';
 
 @Injectable()
 export class QueryService {
@@ -13,6 +14,7 @@ export class QueryService {
   constructor(
     private readonly aiModelService: AiModelsService,
     private readonly conversationRepository: ConversationsRepository,
+    private readonly databaseService: DatabaseService,
   ) {}
 
   async askTest(
@@ -35,6 +37,9 @@ export class QueryService {
       } as any,
     });
     const retrievedDocs = await retriever.invoke(question);
+    const org = await this.databaseService.organization.findFirst({
+      where: { id: organizationId },
+    });
 
     const llmContext = retrievedDocs;
 
@@ -76,7 +81,7 @@ export class QueryService {
 
     const answer = await chain.invoke({
       context: llmContext,
-      brand_name: 'BizBuddy AI',
+      brand_name: org?.name,
       history: conversationHistory,
       question,
     });

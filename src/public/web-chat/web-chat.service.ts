@@ -91,7 +91,7 @@ export class WebChatService {
 
     const answer = await chain.invoke({
       context: llmContext,
-      brand_name: 'BizBuddy AI',
+      brand_name: agent.organization.name,
       question: createWebChatDto.question,
     });
 

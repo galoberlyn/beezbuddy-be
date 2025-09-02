@@ -8,6 +8,8 @@ import {
   Req,
   Get,
   Param,
+  Delete,
+  Put,
   // Patch,
 } from '@nestjs/common';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
@@ -27,7 +29,7 @@ export class WebAgentsController {
     @UploadedFiles() files: Express.Multer.File[],
     @Req() req: Request & DecodedFirebaseTokenWithCustomClaims,
   ) {
-    return this.webAgentService.createFromMultipartFormData(
+    return this.webAgentService.createOrUpdateFromMultipartFormData(
       formData,
       files,
       req.user.org,
@@ -49,13 +51,22 @@ export class WebAgentsController {
     return this.webAgentService.getWebsiteAgent(id, req.user.org);
   }
 
-  // @UseGuards(FirebaseAuthGuard)
-  // @Patch('/website/:id')
-  // updateWebsiteAgent(
-  //   @Param('id') id: string,
-  //   @Body() body: any,
-  //   @Req() req: Request & DecodedFirebaseTokenWithCustomClaims,
-  // ) {
-  //   return this.webAgentService.updateWebsiteAgent(id, body, req.user.org);
-  // }
+  @UseGuards(FirebaseAuthGuard)
+  @Delete('/website/:agentId')
+  deleteWebsiteAgent(
+    @Param('agentId') id: string,
+    @Req() req: Request & DecodedFirebaseTokenWithCustomClaims,
+  ) {
+    return this.webAgentService.deleteAgent(id, req.user.org);
+  }
+
+  @UseGuards(FirebaseAuthGuard)
+  @Put('/website/:id')
+  updateWebsiteAgent(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() req: Request & DecodedFirebaseTokenWithCustomClaims,
+  ) {
+    return this.webAgentService.updateWebsiteAgent(id, body, req.user.org);
+  }
 }

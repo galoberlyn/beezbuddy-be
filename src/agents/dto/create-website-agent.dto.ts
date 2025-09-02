@@ -10,10 +10,16 @@ export class KnowledgeBaseDto {
 
   @ApiProperty({
     description: 'Array of links',
-    type: [String],
+    type: Array<{
+      link: string;
+      isSpa: boolean;
+    }>,
     required: false,
   })
-  links?: string[];
+  links?: Array<{
+    link: string;
+    isSpa: boolean;
+  }>;
 
   @ApiProperty({
     description: 'Array of document files',
