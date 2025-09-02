@@ -29,7 +29,51 @@ export class AgentRepository {
       include: {
         conversations: true,
         authorizedDomains: true,
+        organization: true,
       },
     });
+  }
+
+  async deleteById(id: string, orgId: string) {
+    try {
+      await this.databaseService.$transaction(async tx => {
+        await this.databaseService.agents.delete({
+          where: {
+            id,
+            organizationId: orgId,
+          },
+        });
+
+        await tx.agentWebLinks.deleteMany({
+          where: { agentId: id },
+        });
+        await tx.agents.delete({
+          where: {
+            id,
+            organizationId: orgId,
+          },
+        });
+        await tx.conversation.deleteMany({
+          where: { agentId: id },
+        });
+
+        await tx.agentDocuments.deleteMany({
+          where: { agentId: id },
+        });
+
+        await tx.$executeRaw(
+          Prisma.sql`
+            DELETE FROM "ai.embeddings"
+            WHERE metadata->>'agentId' = ${id}
+            AND metadata->>'organizationId' = ${orgId};
+          `,
+        );
+      });
+
+      return true;
+    } catch (error) {
+      console.log('Error deleting agent', error);
+      return false;
+    }
   }
 }

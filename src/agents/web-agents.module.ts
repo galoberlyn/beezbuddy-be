@@ -9,6 +9,7 @@ import { AgentRepository } from './agent.repository';
 import { DatabaseService } from 'src/database/database.service';
 import { EmbeddingRepository } from 'src/embeddings/embedding.repository';
 import { N8nService } from 'src/n8n/n8n.service';
+import { IngestionService } from 'src/ingestion/ingestion.service';
 
 @Module({
   controllers: [WebAgentsController],
@@ -22,6 +23,7 @@ import { N8nService } from 'src/n8n/n8n.service';
     DatabaseService,
     EmbeddingRepository,
     N8nService,
+    IngestionService,
   ],
 })
 export class WebAgentsModule {}

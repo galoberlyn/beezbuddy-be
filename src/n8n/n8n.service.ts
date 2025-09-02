@@ -17,7 +17,10 @@ export class N8nService {
    * @TODO batch job? para di overloaded si n8n
    * @param data
    */
-  async ingestDocument(data: DocumentIngestionData) {
+  async ingestDocument(
+    data: DocumentIngestionData,
+    embeddingsToReplace?: string[],
+  ) {
     try {
       if (!data.files || !Array.isArray(data.files)) {
         throw new Error(
@@ -39,6 +42,7 @@ export class N8nService {
         console.log('Requesting to ', this.N8N_SERVER_URL + '/upload');
         formData.append('agentId', data.agentId);
         formData.append('organizationId', data.organizationId);
+        formData.append('embeddingsToReplace', embeddingsToReplace);
         const response = await fetch(this.N8N_SERVER_URL + '/upload', {
           method: 'POST',
           body: formData,
@@ -60,7 +64,10 @@ export class N8nService {
     }
   }
 
-  async ingestPlainText(data: PlainTextIngestionData) {
+  async ingestPlainText(
+    data: PlainTextIngestionData,
+    embeddingsToReplace?: string[],
+  ) {
     if (!data.data) {
       throw new Error('No text provided for ingestion');
     }
@@ -69,6 +76,7 @@ export class N8nService {
     formData.append('data', data.data);
     formData.append('agentId', data.agentId);
     formData.append('organizationId', data.organizationId);
+    formData.append('embeddingsToReplace', embeddingsToReplace);
 
     console.log('Passing data to ', this.N8N_SERVER_URL + '/plaintext');
     const response = await fetch(this.N8N_SERVER_URL + '/plaintext', {
@@ -81,7 +89,7 @@ export class N8nService {
     }
   }
 
-  async ingestLinks(data: LinksIngestionData) {
+  async ingestLinks(data: LinksIngestionData, embeddingsToReplace?: string[]) {
     if (!data.html) {
       throw new Error('No HTML provided for ingestion');
     }
@@ -90,6 +98,7 @@ export class N8nService {
     formData.append('html', data.html);
     formData.append('agentId', data.agentId);
     formData.append('organizationId', data.organizationId);
+    formData.append('embeddingsToReplace', embeddingsToReplace);
 
     console.log('Passing data to ', this.N8N_SERVER_URL + '/scrape');
     const response = await fetch(this.N8N_SERVER_URL + '/scrape', {
