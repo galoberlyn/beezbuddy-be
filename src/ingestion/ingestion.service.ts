@@ -73,14 +73,15 @@ export class IngestionService {
   }
 
   async processLinksIngestion(
-    links: { link: string; isSpa: boolean }[],
+    links: { url: string; isSPA: boolean }[],
     organization: string,
     agent: Agents,
     embeddings?: string[],
   ) {
+    console.log('processLinksIngestion', embeddings);
     let browser: any = null;
     for (const link of links) {
-      if (link.isSpa) {
+      if (link.isSPA) {
         if (!browser) {
           browser = await puppeteer.launch({
             headless: true,
@@ -96,7 +97,7 @@ export class IngestionService {
         );
         try {
           console.log('Going to link:', link);
-          await page.goto(link, { waitUntil: 'networkidle2' });
+          await page.goto(link.url, { waitUntil: 'networkidle2' });
           const html = await page.content();
           await browser.close();
 
@@ -107,7 +108,7 @@ export class IngestionService {
             embeddings,
           });
         } catch (error) {
-          this.logger.error('Failed to get HTML for link: ' + link, error);
+          this.logger.error('Failed to get HTML for link: ' + link.url, error);
           throw new HttpException(
             'Provided link is not a valid URL',
             HttpStatus.BAD_REQUEST,
@@ -115,7 +116,7 @@ export class IngestionService {
         }
       } else {
         this.logger.log('Not SPA, skipping puppeteer');
-        const resp = await fetch(link.link, {
+        const resp = await fetch(link.url, {
           method: 'GET',
         });
         const html = await resp.text();

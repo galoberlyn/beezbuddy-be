@@ -7,8 +7,15 @@ export class EmbeddingRepository {
 
   async findByAgentId(agentId: string): Promise<any> {
     return this.databaseService.$queryRaw<any>`
-      SELECT * FROM "ai"."embeddings"
-      WHERE metadata->>'agent_id' = ${agentId}
+      SELECT id FROM "ai"."embeddings"
+      WHERE metadata->>'agentId' = ${agentId}
+    `;
+  }
+
+  async bulkDelete(ids: string[]) {
+    return this.databaseService.$queryRaw<any>`
+      DELETE FROM "ai"."embeddings"
+      WHERE id = ANY(${ids}::uuid[])
     `;
   }
 

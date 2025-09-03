@@ -30,6 +30,7 @@ export class AgentRepository {
         conversations: true,
         authorizedDomains: true,
         organization: true,
+        links: true,
       },
     });
   }

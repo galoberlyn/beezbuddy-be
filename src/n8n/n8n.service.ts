@@ -89,7 +89,7 @@ export class N8nService {
     }
   }
 
-  async ingestLinks(data: LinksIngestionData, embeddingsToReplace?: string[]) {
+  async ingestLinks(data: LinksIngestionData) {
     if (!data.html) {
       throw new Error('No HTML provided for ingestion');
     }
@@ -98,7 +98,7 @@ export class N8nService {
     formData.append('html', data.html);
     formData.append('agentId', data.agentId);
     formData.append('organizationId', data.organizationId);
-    formData.append('embeddingsToReplace', embeddingsToReplace);
+    formData.append('embeddingsToReplace', JSON.stringify(data.embeddings));
 
     console.log('Passing data to ', this.N8N_SERVER_URL + '/scrape');
     const response = await fetch(this.N8N_SERVER_URL + '/scrape', {

@@ -3,11 +3,11 @@ import { Embeddings } from '@langchain/core/embeddings';
 import { PGVectorStore } from '@langchain/community/dist/vectorstores/pgvector';
 
 export interface AIModelStrategy {
-  getLanguageModel(): Promise<BaseLanguageModel>;
+  getLanguageModel(): BaseLanguageModel;
   getEmbeddingsModel(): Promise<Embeddings>;
   getModelName(): string;
   getEmbeddingsModelName(): string;
-  getVectorStore(): Promise<PGVectorStore>;
+  getVectorStore(): PGVectorStore;
 }
 
 export interface AIModelConfig {

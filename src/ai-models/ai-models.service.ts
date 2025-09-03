@@ -12,9 +12,9 @@ export class AiModelsService {
   /**
    * Get the current language model
    */
-  async getLanguageModel(): Promise<BaseLanguageModel> {
+  getLanguageModel(): BaseLanguageModel {
     const strategy = this.strategyFactory.getStrategy();
-    return await strategy.getLanguageModel();
+    return strategy.getLanguageModel();
   }
 
   /**
@@ -63,10 +63,10 @@ export class AiModelsService {
   /**
    * Generate text using the current language model
    */
-  async generateText(prompt: string): Promise<string> {
-    const model = await this.getLanguageModel();
-    const response = await model.invoke(prompt);
-    return response.content as string;
+  generateText(prompt: string): string {
+    const model = this.getLanguageModel();
+    const response = model.invoke(prompt);
+    return (response as unknown as any).content as string;
   }
 
   /**
@@ -90,8 +90,8 @@ export class AiModelsService {
   /**
    * Get the vector store
    */
-  async getVectorStore(): Promise<PGVectorStore> {
+  getVectorStore(): PGVectorStore {
     const strategy = this.strategyFactory.getStrategy();
-    return await strategy.getVectorStore();
+    return strategy.getVectorStore();
   }
 }

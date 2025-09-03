@@ -2,7 +2,7 @@ model AgentWebLinks {
   id        String   @id @default(uuid())
   agentId   String
   link      String
-  isSPA     Boolean
+  isSPA     Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   agent     Agents   @relation(fields: [agentId], references: [id])

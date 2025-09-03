@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { OllamaStrategy } from './ollama-strategy';
 import {
   AIModelStrategy,
   AIModelConfig,
 } from '../interfaces/ai-model.interface';
+import { PG_POOL } from 'src/database/pg.constants';
+import { Pool } from 'pg';
 
 export enum ModelType {
   OLLAMA = 'ollama',
@@ -18,7 +20,7 @@ export class StrategyFactory {
   private strategies: Map<ModelType, AIModelStrategy> = new Map();
   private currentStrategy: ModelType = ModelType.OLLAMA;
 
-  constructor() {
+  constructor(@Inject(PG_POOL) private readonly pool: Pool) {
     this.initializeDefaultStrategies();
   }
 
@@ -31,7 +33,10 @@ export class StrategyFactory {
       temperature: 0.7,
     };
 
-    this.strategies.set(ModelType.OLLAMA, new OllamaStrategy(ollamaConfig));
+    this.strategies.set(
+      ModelType.OLLAMA,
+      new OllamaStrategy(ollamaConfig, this.pool),
+    );
   }
 
   getStrategy(type: ModelType = this.currentStrategy): AIModelStrategy {
@@ -51,7 +56,7 @@ export class StrategyFactory {
           baseUrl: 'http://127.0.0.1:11434',
           temperature: 0.7,
         };
-        this.strategies.set(type, new OllamaStrategy(ollamaConfig));
+        this.strategies.set(type, new OllamaStrategy(ollamaConfig, this.pool));
         break;
       }
       // Add more cases for other model types

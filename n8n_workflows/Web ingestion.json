@@ -22,8 +22,8 @@
       "name": "splitIntoChunksWeb",
       "type": "n8n-nodes-base.code",
       "position": [
-        20,
-        340
+        -380,
+        300
       ],
       "typeVersion": 2
     },
@@ -38,8 +38,8 @@
       "name": "splitWeb",
       "type": "n8n-nodes-base.splitOut",
       "position": [
-        240,
-        240
+        -160,
+        200
       ],
       "typeVersion": 1
     },
@@ -51,8 +51,8 @@
       "name": "limitWeb",
       "type": "n8n-nodes-base.limit",
       "position": [
-        440,
-        220
+        40,
+        180
       ],
       "typeVersion": 1
     },
@@ -64,8 +64,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
       "typeVersion": 1,
       "position": [
-        660,
-        360
+        260,
+        320
       ],
       "id": "d1ee3d92-860a-49c7-a425-ede6c234a721",
       "name": "Ollama Chat Model1",
@@ -94,8 +94,8 @@
       "name": "Summarize1",
       "type": "n8n-nodes-base.summarize",
       "position": [
-        940,
-        300
+        540,
+        260
       ],
       "typeVersion": 1.1
     },
@@ -108,8 +108,8 @@
       "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
       "typeVersion": 1.3,
       "position": [
-        1100,
-        40
+        700,
+        0
       ],
       "id": "820cc89e-a170-4ada-aa4d-bfbd128940f7",
       "name": "Postgres PGVector Store1",
@@ -128,8 +128,8 @@
       "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
       "typeVersion": 1,
       "position": [
-        1260,
-        440
+        860,
+        400
       ],
       "id": "3686eb1a-6a0d-49dc-908f-9f4e7b2f2183",
       "name": "Embeddings Ollama1",
@@ -171,8 +171,8 @@
       "name": "Default Data Loader1",
       "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
       "position": [
-        1460,
-        240
+        1060,
+        200
       ],
       "typeVersion": 1
     },
@@ -184,8 +184,8 @@
       "name": "Character Text Splitter",
       "type": "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
       "position": [
-        1540,
-        400
+        1140,
+        360
       ],
       "typeVersion": 1
     },
@@ -198,8 +198,8 @@
       "name": "processWebContext",
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "position": [
-        620,
-        20
+        220,
+        -20
       ],
       "typeVersion": 1.6
     },
@@ -213,8 +213,8 @@
       "name": "Create Metadata Title & Description",
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "position": [
-        -380,
-        200
+        -780,
+        160
       ],
       "typeVersion": 1.6
     },
@@ -226,8 +226,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmOllama",
       "typeVersion": 1,
       "position": [
-        -320,
-        560
+        -720,
+        520
       ],
       "id": "18dd811d-3000-4a34-a6fc-e104e6173fac",
       "name": "Ollama Model",
@@ -245,8 +245,8 @@
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        -60,
-        580
+        -460,
+        540
       ],
       "id": "4509052a-bd49-4b8e-a584-8364ffbec469",
       "name": "Structured Output Parser1"
@@ -261,12 +261,100 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -1680,
-        240
+        -1380,
+        160
       ],
       "id": "092a3453-1460-425f-8fe9-9835a113bd88",
       "webhookId": "dbf986b9-f389-4c8b-873b-2999b3a24736",
       "notes": "curl -X POST \"http://localhost:5678/webhook/scrape\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"url\": \"https://galogarlejo.dev\"}'\n"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "upsert",
+        "projectId": "beezbuddy-89aa6",
+        "collection": "={{ $json.organizationId }}",
+        "updateKey": "agentId",
+        "columns": "=ready"
+      },
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "typeVersion": 1.1,
+      "position": [
+        1900,
+        80
+      ],
+      "id": "aa5f1898-cdeb-4203-b2a0-d70ef637c362",
+      "name": "Create or update a document",
+      "executeOnce": false,
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleApi": {
+          "id": "XBWGvfEe7IhwK8Cu",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "19804b28-2d91-4c76-a3ff-256d38d5ccef",
+              "name": "organizationId",
+              "value": "={{ $('Web Ingest').item.json.body.organizationId }}",
+              "type": "string"
+            },
+            {
+              "id": "e5553d77-31ec-4f17-be74-27054ef7a369",
+              "name": "agentId",
+              "value": "={{ $('Web Ingest').item.json.body.agentId }}",
+              "type": "string"
+            },
+            {
+              "id": "bba11a13-11e8-4dbc-85d7-46892be6a73a",
+              "name": "ready",
+              "value": true,
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1260,
+        -40
+      ],
+      "id": "09d23d2a-82dc-4fea-8627-a48ddf75af67",
+      "name": "Edit Fields",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "http://localhost:3000/api/s2s/embeddings",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $('Web Ingest').item.json.body.embeddingsToReplace }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1620,
+        60
+      ],
+      "id": "86b80457-165e-4a1b-aec9-09c4b6ea02d1",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "pSBWZa1YRUbmHqJj",
+          "name": "s2s"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -424,14 +512,53 @@
           }
         ]
       ]
+    },
+    "Postgres PGVector Store1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create or update a document": {
+      "main": [
+        []
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Create or update a document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "d7d90984-132a-4f63-83ff-6814be2a1eea",
+  "versionId": "b18577ea-4fed-4a27-a8ff-daf08e8feb24",
   "meta": {
+    "templateCredsSetupCompleted": true,
     "instanceId": "36207d550658bbf91be2a7d3a9212d262b1fd84b34f51d4df4ed31a5096855d0"
   },
   "id": "c9x9HeafPXqNmELl",

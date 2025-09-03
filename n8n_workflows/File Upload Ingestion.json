@@ -362,6 +362,100 @@
         20
       ],
       "typeVersion": 3.2
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "upsert",
+        "projectId": "beezbuddy-89aa6",
+        "collection": "={{ $json.organizationId }}",
+        "updateKey": "agentId",
+        "columns": "=ready"
+      },
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "typeVersion": 1.1,
+      "position": [
+        2320,
+        0
+      ],
+      "id": "e836af08-83bc-48de-a769-4825d161528d",
+      "name": "Create or update a document",
+      "executeOnce": false,
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleApi": {
+          "id": "XBWGvfEe7IhwK8Cu",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "19804b28-2d91-4c76-a3ff-256d38d5ccef",
+              "name": "organizationId",
+              "value": "={{ $('File ingest').item.json.body.organizationId }}",
+              "type": "string"
+            },
+            {
+              "id": "e5553d77-31ec-4f17-be74-27054ef7a369",
+              "name": "agentId",
+              "value": "={{ $('File ingest').item.json.body.agentId }}",
+              "type": "string"
+            },
+            {
+              "id": "bba11a13-11e8-4dbc-85d7-46892be6a73a",
+              "name": "ready",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "117349b7-aa23-45e5-bb02-74b7ea2ddcfe",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1680,
+        -120
+      ],
+      "id": "aaa2678c-8167-4c53-a3a6-f7b5b4e32c9f",
+      "name": "Edit Fields",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "http://localhost:3000/api/s2s/embeddings",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $('File ingest').item.json.body.embeddingsToReplace }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2040,
+        -20
+      ],
+      "id": "f2cebc2e-b769-49cc-b366-c2dc94ee09b4",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "pSBWZa1YRUbmHqJj",
+          "name": "s2s"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -559,6 +653,39 @@
           }
         ]
       ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Create or update a document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres PGVector Store": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
@@ -566,7 +693,7 @@
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "02c9b18b-0602-44e5-bd4d-5b6023fe23c4",
+  "versionId": "9c43f635-1a8f-4e35-9ed6-e095cbce9272",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "36207d550658bbf91be2a7d3a9212d262b1fd84b34f51d4df4ed31a5096855d0"

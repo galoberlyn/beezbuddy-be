@@ -114,8 +114,8 @@
       "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
       "typeVersion": 1,
       "position": [
-        780,
-        520
+        640,
+        540
       ],
       "id": "5e538ca9-ec7e-493f-914f-7f135177fe78",
       "name": "Embeddings Ollama1",
@@ -153,8 +153,8 @@
       "name": "Default Data Loader1",
       "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
       "position": [
-        980,
-        320
+        760,
+        380
       ],
       "typeVersion": 1
     },
@@ -166,8 +166,8 @@
       "name": "Character Text Splitter",
       "type": "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
       "position": [
-        1060,
-        480
+        840,
+        600
       ],
       "typeVersion": 1
     },
@@ -266,6 +266,94 @@
         320
       ],
       "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "upsert",
+        "projectId": "beezbuddy-89aa6",
+        "collection": "={{ $json.organizationId }}",
+        "updateKey": "agentId",
+        "columns": "=ready"
+      },
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "typeVersion": 1.1,
+      "position": [
+        1760,
+        240
+      ],
+      "id": "d89fa04d-49ad-4f74-ba26-309204ec0101",
+      "name": "Create or update a document",
+      "executeOnce": false,
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleApi": {
+          "id": "XBWGvfEe7IhwK8Cu",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "19804b28-2d91-4c76-a3ff-256d38d5ccef",
+              "name": "organizationId",
+              "value": "={{ $('Web Ingest').item.json.body.organizationId }}",
+              "type": "string"
+            },
+            {
+              "id": "e5553d77-31ec-4f17-be74-27054ef7a369",
+              "name": "agentId",
+              "value": "={{ $('Web Ingest').item.json.body.agentId }}",
+              "type": "string"
+            },
+            {
+              "id": "bba11a13-11e8-4dbc-85d7-46892be6a73a",
+              "name": "ready",
+              "value": true,
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1080,
+        120
+      ],
+      "id": "b4cc6264-3811-4a49-be7c-aa0e5b092e3a",
+      "name": "Edit Fields",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "http://localhost:3000/api/s2s/embeddings",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $('plainTextIngestion').item.json.body.embeddingsToReplace }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1480,
+        220
+      ],
+      "id": "13eb4348-9954-4cd9-9a04-878916fb390d",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "pSBWZa1YRUbmHqJj",
+          "name": "s2s"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -423,13 +511,46 @@
           }
         ]
       ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Create or update a document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres PGVector Store1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "18b19ed1-0c23-4be8-a3fd-fe076a3a70e9",
+  "versionId": "fbce89fc-c591-4b52-b982-e0461afa7abc",
   "meta": {
     "instanceId": "36207d550658bbf91be2a7d3a9212d262b1fd84b34f51d4df4ed31a5096855d0"
   },

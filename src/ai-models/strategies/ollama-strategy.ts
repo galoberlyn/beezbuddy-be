@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Ollama } from '@langchain/ollama';
 import { OllamaEmbeddings } from '@langchain/ollama';
 import {
@@ -6,6 +6,8 @@ import {
   AIModelConfig,
 } from '../interfaces/ai-model.interface';
 import { PGVectorStore } from '@langchain/community/vectorstores/pgvector';
+import { PG_POOL } from 'src/database/pg.constants';
+import { Pool } from 'pg';
 
 @Injectable()
 export class OllamaStrategy implements AIModelStrategy {
@@ -17,17 +19,19 @@ export class OllamaStrategy implements AIModelStrategy {
 
   private logger = new Logger(OllamaStrategy.name);
 
-  constructor(config: AIModelConfig) {
+  constructor(
+    config: AIModelConfig,
+    @Inject(PG_POOL) private readonly pool: Pool,
+  ) {
     this.config = config;
-    this.initializeModels()
-      .then(() => {
-        this.isInitialized = true;
-        this.logger.log('Models initialized');
-      })
-      .catch(error => this.logger.error('Error initializing models:', error));
+    try {
+      this.initializeModels();
+    } catch (error) {
+      this.logger.error('Error initializing ai model strategies:', error);
+    }
   }
 
-  private async initializeModels(): Promise<void> {
+  private initializeModels() {
     // Initialize language model
     this.languageModel = new Ollama({
       model: this.config.modelName,
@@ -47,13 +51,8 @@ export class OllamaStrategy implements AIModelStrategy {
         'http://127.0.0.1:11434',
     });
 
-    // Initialize the vector store
-    this.logger.log('Initializing vector store with database connection...');
-    this.logger.log(
-      `Database config: ${process.env.PG_HOST}:${process.env.PG_PORT}/${process.env.PG_DATABASE}`,
-    );
-
-    this.vectorStore = await PGVectorStore.initialize(this.embeddingsModel, {
+    this.vectorStore = new PGVectorStore(this.embeddingsModel, {
+      pool: this.pool,
       postgresConnectionOptions: {
         host: process.env.PG_HOST,
         port: Number(process.env.PG_PORT) || 5432,
@@ -61,6 +60,7 @@ export class OllamaStrategy implements AIModelStrategy {
         password: process.env.PG_PASSWORD,
         database: process.env.PG_DATABASE,
       },
+      skipInitializationCheck: true,
       tableName: 'embeddings',
       schemaName: 'ai',
       columns: {
@@ -74,10 +74,7 @@ export class OllamaStrategy implements AIModelStrategy {
     this.logger.log('Vector store initialized successfully');
   }
 
-  async getLanguageModel(): Promise<Ollama> {
-    if (!this.isInitialized) {
-      await this.waitForInitialization();
-    }
+  getLanguageModel(): Ollama {
     return this.languageModel;
   }
 
@@ -88,10 +85,7 @@ export class OllamaStrategy implements AIModelStrategy {
     return this.embeddingsModel;
   }
 
-  async getVectorStore(): Promise<PGVectorStore> {
-    if (!this.isInitialized) {
-      await this.waitForInitialization();
-    }
+  getVectorStore(): PGVectorStore {
     return this.vectorStore;
   }
 

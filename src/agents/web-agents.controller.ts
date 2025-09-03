@@ -62,11 +62,18 @@ export class WebAgentsController {
 
   @UseGuards(FirebaseAuthGuard)
   @Put('/website/:id')
+  @UseInterceptors(AnyFilesInterceptor())
   updateWebsiteAgent(
     @Param('id') id: string,
-    @Body() body: any,
+    @Body() formData: any,
+    @UploadedFiles() files: Express.Multer.File[],
     @Req() req: Request & DecodedFirebaseTokenWithCustomClaims,
   ) {
-    return this.webAgentService.updateWebsiteAgent(id, body, req.user.org);
+    return this.webAgentService.createOrUpdateFromMultipartFormData(
+      formData,
+      files,
+      req.user.org,
+      id,
+    );
   }
 }

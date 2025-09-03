@@ -9,16 +9,16 @@ export class KnowledgeBaseDto {
   type: string;
 
   @ApiProperty({
-    description: 'Array of links',
+    description: 'Array of links but stringified',
     type: Array<{
       link: string;
-      isSpa: boolean;
+      isSPA: boolean;
     }>,
     required: false,
   })
   links?: Array<{
-    link: string;
-    isSpa: boolean;
+    url: string;
+    isSPA: boolean;
   }>;
 
   @ApiProperty({
@@ -36,6 +36,9 @@ export class KnowledgeBaseDto {
 export class CreateWebsiteAgentDto {
   @ApiProperty({ description: 'The name of the agent' })
   agentName: string;
+
+  @ApiProperty({ description: 'The description of the agent' })
+  agentDescription: string;
 
   @ApiProperty({
     description: 'The avatar file of the agent',
