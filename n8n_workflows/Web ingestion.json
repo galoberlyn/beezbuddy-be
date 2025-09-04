@@ -261,7 +261,7 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -1380,
+        -1640,
         160
       ],
       "id": "092a3453-1460-425f-8fe9-9835a113bd88",
@@ -270,27 +270,63 @@
     },
     {
       "parameters": {
-        "authentication": "serviceAccount",
-        "operation": "upsert",
-        "projectId": "beezbuddy-89aa6",
-        "collection": "={{ $json.organizationId }}",
-        "updateKey": "agentId",
-        "columns": "=ready"
+        "assignments": {
+          "assignments": [
+            {
+              "id": "19804b28-2d91-4c76-a3ff-256d38d5ccef",
+              "name": "organizationId",
+              "value": "={{ $('Web Ingest').item.json.body.organizationId }}",
+              "type": "string"
+            },
+            {
+              "id": "e5553d77-31ec-4f17-be74-27054ef7a369",
+              "name": "agentId",
+              "value": "={{ $('Web Ingest').item.json.body.agentId }}",
+              "type": "string"
+            },
+            {
+              "id": "bba11a13-11e8-4dbc-85d7-46892be6a73a",
+              "name": "status",
+              "value": "active",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
       },
-      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
-      "typeVersion": 1.1,
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [
-        1900,
-        80
+        1260,
+        -100
       ],
-      "id": "aa5f1898-cdeb-4203-b2a0-d70ef637c362",
-      "name": "Create or update a document",
-      "executeOnce": false,
-      "alwaysOutputData": false,
+      "id": "09d23d2a-82dc-4fea-8627-a48ddf75af67",
+      "name": "Edit Fields",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "http://localhost:3000/api/s2s/embeddings",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $('Web Ingest').item.json.body.embeddingsToReplace }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1880,
+        240
+      ],
+      "id": "86b80457-165e-4a1b-aec9-09c4b6ea02d1",
+      "name": "HTTP Request",
       "credentials": {
-        "googleApi": {
-          "id": "XBWGvfEe7IhwK8Cu",
-          "name": "Google Service Account account"
+        "httpBasicAuth": {
+          "id": "pSBWZa1YRUbmHqJj",
+          "name": "s2s"
         }
       }
     },
@@ -312,9 +348,9 @@
             },
             {
               "id": "bba11a13-11e8-4dbc-85d7-46892be6a73a",
-              "name": "ready",
-              "value": true,
-              "type": "boolean"
+              "name": "status",
+              "value": "training",
+              "type": "string"
             }
           ]
         },
@@ -323,38 +359,129 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1260,
-        -40
+        -1460,
+        440
       ],
-      "id": "09d23d2a-82dc-4fea-8627-a48ddf75af67",
-      "name": "Edit Fields",
+      "id": "680ec709-5f54-44ae-b3e2-ce901e214426",
+      "name": "transformForStatusTraining",
       "executeOnce": true
     },
     {
       "parameters": {
-        "method": "DELETE",
-        "url": "http://localhost:3000/api/s2s/embeddings",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpBasicAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ $('Web Ingest').item.json.body.embeddingsToReplace }}",
-        "options": {}
+        "authentication": "serviceAccount",
+        "operation": "upsert",
+        "projectId": "beezbuddy-89aa6",
+        "collection": "={{ $json.organizationId }}",
+        "updateKey": "=agentId",
+        "columns": "=status"
       },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "typeVersion": 1.1,
       "position": [
-        1620,
-        60
+        -1220,
+        580
       ],
-      "id": "86b80457-165e-4a1b-aec9-09c4b6ea02d1",
-      "name": "HTTP Request",
+      "id": "1d13e55f-9452-49ce-88be-f7353ff3a7e5",
+      "name": "Set status to training",
+      "executeOnce": false,
+      "alwaysOutputData": false,
       "credentials": {
-        "httpBasicAuth": {
-          "id": "pSBWZa1YRUbmHqJj",
-          "name": "s2s"
+        "googleApi": {
+          "id": "XBWGvfEe7IhwK8Cu",
+          "name": "Google Service Account account"
         }
       }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "upsert",
+        "projectId": "beezbuddy-89aa6",
+        "collection": "={{ $('Edit Fields').item.json.organizationId }}",
+        "updateKey": "agentId",
+        "columns": "=status"
+      },
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "typeVersion": 1.1,
+      "position": [
+        2180,
+        100
+      ],
+      "id": "aa5f1898-cdeb-4203-b2a0-d70ef637c362",
+      "name": "Update status to active",
+      "executeOnce": false,
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleApi": {
+          "id": "XBWGvfEe7IhwK8Cu",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Web Ingest').item.json.body.embeddingsToReplace }}",
+                    "rightValue": "undefined",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "f0e2d43c-4991-45ac-8539-363f933d0a2a"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "No embeddings to replace, skip deletion"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "f40f9b6d-b82c-48d7-ab96-c1aeb8a5536b",
+                    "leftValue": "={{ $('Web Ingest').item.json.body.embeddingsToReplace }}",
+                    "rightValue": "undefined",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEquals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "embeddings detected, delete it"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1600,
+        140
+      ],
+      "id": "d238548c-5131-4528-a83d-0cf467869e74",
+      "name": "Switch"
     }
   ],
   "pinData": {},
@@ -509,6 +636,11 @@
             "node": "Parse Static HTML",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "transformForStatusTraining",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -528,23 +660,52 @@
       "main": [
         [
           {
-            "node": "HTTP Request",
+            "node": "Switch",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Create or update a document": {
-      "main": [
-        []
-      ]
-    },
     "HTTP Request": {
       "main": [
         [
           {
-            "node": "Create or update a document",
+            "node": "Update status to active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "transformForStatusTraining": {
+      "main": [
+        [
+          {
+            "node": "Set status to training",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update status to active": {
+      "main": [
+        []
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Update status to active",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request",
             "type": "main",
             "index": 0
           }
@@ -556,7 +717,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "b18577ea-4fed-4a27-a8ff-daf08e8feb24",
+  "versionId": "0df6fad3-32dc-4954-825a-1ce2a9719843",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "36207d550658bbf91be2a7d3a9212d262b1fd84b34f51d4df4ed31a5096855d0"
