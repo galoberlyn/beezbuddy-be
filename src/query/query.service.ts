@@ -40,6 +40,16 @@ export class QueryService {
     const retrievedDocs = await retriever.invoke(question);
     const org = await this.databaseService.organization.findFirst({
       where: { id: organizationId },
+      include: {
+        agents: {
+          where: {
+            id: agentId,
+          },
+          select: {
+            name: true,
+          },
+        },
+      },
     });
 
     const llmContext = retrievedDocs
@@ -58,22 +68,32 @@ export class QueryService {
       [
         'system',
         `
-    You are a Customer Support Assistant for the brand name: '{brand_name}'.
-    
-    Your job is to answer user questions using only the information in this context here {context} and conversation history here {history}.
+    You are a Customer Support Assistant for {brand_name}. Your name is {name}.
+    Answer using only these sources:
+    - ##PRODUCT_KB  → product/company facts
+    - ##CONVERSATION → prior user/assistant turns
+    - ##ASSISTANT_PROFILE → only for questions about your identity (name/role/brand). Ignore any other names in ##PRODUCT_KB for identity.
     
     Rules:
-    1. Only respond with information explicitly in {context} or {history}. If something is missing, state that clearly and suggest one next step.
-    2. Speak with confidence and authority. Use direct, professional language.
-    3. Never use attribution phrases (e.g., "Based on...", "It seems...", "From the context/history...", etc.). Do not mention "context", "history", or "retrieval" in any form.
-    4. Use no more than 5 short, clear sentences. No filler. Match the user’s tone and formality.
-    5. If a pronoun or reference is unclear, ask one brief clarifying question.
-    6. Do not guess. Do not make anything up. If unsure, say so directly and suggest a next action.
+    1) Answer the user's latest question directly. Do not restate your role unless the user asks who/what you are.
+    2) Never copy headers or raw block text (e.g., "##ASSISTANT_PROFILE") into your reply.
+    3) If the answer is not in the allowed sources, say "I don't have the information to answer that question."
+    4) No attribution phrases. Be concise: max 5 short sentences. No filler.
+    5) If the user asks "Who developed you?" and it's not in ##PRODUCT_KB or ##CONVERSATION, say "I don't know."
+    6) Do not repeat an answer unless explicitly asked.
+    7) Never use attribution phrases or mention documents/history.
+
+    ##ASSISTANT_PROFILE
+    name: {name}
+    role: Customer Support Assistant
+    brand: {brand_name}
     
-    Inputs:
-    - Context: {context}
-    - Conversation History (newest first): {history}
-    `.trim(),
+    ##PRODUCT_KB
+    {context}
+    
+    ##CONVERSATION
+    {history}
+      `.trim(),
       ],
       ['human', 'Question: {question}'],
     ]);
@@ -89,6 +109,7 @@ export class QueryService {
     const answer = await chain.invoke({
       context: llmContext,
       brand_name: org?.name,
+      name: org?.agents[0].name,
       history: conversationHistory,
       question,
     });

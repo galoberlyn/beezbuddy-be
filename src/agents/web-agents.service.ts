@@ -13,7 +13,7 @@ import {
 import { S3Service } from 'src/aws/s3/s3.service';
 import { AiModelsService } from 'src/ai-models/ai-models.service';
 import { ModelType } from 'src/ai-models/strategies/strategy-factory';
-import { AgentType, Prisma } from '@prisma/client';
+import { Agents, AgentType, Prisma } from '@prisma/client';
 import { AgentRepository } from './agent.repository';
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -141,61 +141,69 @@ export class WebAgentsService {
       };
     }
 
-    console.log(data.knowledgeBase.links);
+    try {
+      let agent: Agents | null = null;
+      await this.databaseService.$transaction(async tx => {
+        agent = await this.agentRepository.create(agentPayload, tx);
+        if (
+          data.knowledgeBase.type === 'documents' &&
+          data.knowledgeBase.documents
+        ) {
+          const documentUrls =
+            await this.ingestionService.processDocumentIngestion(
+              data,
+              orgId,
+              agent,
+              undefined,
+            );
+          console.log('documentUrls', documentUrls);
+        }
 
-    const agent = await this.agentRepository.create(agentPayload);
-
-    if (data.knowledgeBase.type === 'documents') {
-      if (data.knowledgeBase.documents) {
-        const documentUrls =
-          await this.ingestionService.processDocumentIngestion(
+        if (
+          data.knowledgeBase.type === 'plaintext' &&
+          data.knowledgeBase.freeText
+        ) {
+          await this.ingestionService.processPlainTextIngestion(
             data,
             orgId,
             agent,
-          );
-        console.log('documentUrls', documentUrls);
-      } else {
-        throw new BadRequestException('No documents provided');
-      }
-    }
-
-    if (data.knowledgeBase.type === 'plaintext') {
-      if (data.knowledgeBase.freeText) {
-        await this.ingestionService.processPlainTextIngestion(
-          data,
-          orgId,
-          agent,
-        );
-      } else {
-        throw new BadRequestException('No knowledge base provided');
-      }
-    }
-
-    if (data.knowledgeBase.type === 'links') {
-      if (data.knowledgeBase.links) {
-        const links = data.knowledgeBase.links;
-        try {
-          await this.ingestionService.processLinksIngestion(
-            links,
-            orgId,
-            agent,
-          );
-        } catch (e) {
-          console.log('Error:', e);
-          throw new HttpException(
-            'Provided link is not a valid URL',
-            HttpStatus.BAD_REQUEST,
+            undefined,
           );
         }
-      } else {
-        throw new BadRequestException('No links provided');
-      }
-    }
 
-    return {
-      message: 'Agent created successfully',
-      data: agent,
-    };
+        if (data.knowledgeBase.type === 'links' && data.knowledgeBase.links) {
+          const links = data.knowledgeBase.links;
+          try {
+            await this.ingestionService.processLinksIngestion(
+              links,
+              orgId,
+              agent,
+              undefined,
+            );
+          } catch (e) {
+            console.log('Error:', e);
+            throw new HttpException(
+              'Provided link is not a valid URL',
+              HttpStatus.BAD_REQUEST,
+            );
+          }
+        }
+      });
+
+      return {
+        message: 'Agent created successfully',
+        data: agent,
+      };
+    } catch (error) {
+      this.logger.error(
+        'Failed to create an agent, something went wrong',
+        error,
+      );
+      throw new HttpException(
+        'Failed to create an agent, something went wrong',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   /**
