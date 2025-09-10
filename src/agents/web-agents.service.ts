@@ -80,7 +80,7 @@ export class WebAgentsService {
     };
 
     // Process uploaded files
-    if (createWebsiteAgentDto.type === 'documents') {
+    if (createWebsiteAgentDto.knowledgeBase.type === 'documents') {
       const documents = files.filter(
         file => file.fieldname === 'knowledgeBase.documents',
       );
@@ -369,7 +369,6 @@ export class WebAgentsService {
       throw new NotFoundException('Agent not found');
     }
     const embedding = await this.embeddingRepository.findByAgentId(agent?.id);
-
     const content = embedding.map(e => e.text).join('\n');
 
     return {

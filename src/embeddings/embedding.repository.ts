@@ -7,7 +7,7 @@ export class EmbeddingRepository {
 
   async findByAgentId(agentId: string): Promise<any> {
     return this.databaseService.$queryRaw<any>`
-      SELECT id FROM "ai"."embeddings"
+      SELECT id, "text" FROM "ai"."embeddings"
       WHERE metadata->>'agentId' = ${agentId}
     `;
   }

@@ -44,15 +44,15 @@
     {
       "parameters": {
         "operation": "pdf",
-        "binaryPropertyName": "file",
+        "binaryPropertyName": "=file",
         "options": {}
       },
       "id": "07c6bf2e-c046-458d-92d1-7354f661c432",
       "name": "Extract from PDF",
       "type": "n8n-nodes-base.extractFromFile",
       "position": [
-        -720,
-        -100
+        -1480,
+        -180
       ],
       "typeVersion": 1
     },
@@ -65,8 +65,8 @@
       "name": "Extract from CSV",
       "type": "n8n-nodes-base.extractFromFile",
       "position": [
-        -740,
-        120
+        -1480,
+        0
       ],
       "typeVersion": 1
     },
@@ -80,8 +80,8 @@
       "name": "Document Data",
       "type": "n8n-nodes-base.set",
       "position": [
-        -460,
-        0
+        -680,
+        -100
       ],
       "typeVersion": 3.4
     },
@@ -227,7 +227,7 @@
       "name": "Character Text Splitter1",
       "type": "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
       "position": [
-        1360,
+        1300,
         360
       ],
       "typeVersion": 1
@@ -284,13 +284,15 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "upload",
-        "options": {}
+        "options": {
+          "rawBody": true
+        }
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        -1740,
-        20
+        -2120,
+        -100
       ],
       "id": "dc65a380-b3d8-428c-9c3d-e1de7d02aa9b",
       "name": "File ingest",
@@ -304,10 +306,10 @@
             {
               "conditions": {
                 "options": {
-                  "version": 2,
-                  "leftValue": "",
                   "caseSensitive": true,
-                  "typeValidation": "strict"
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
                 },
                 "conditions": [
                   {
@@ -316,22 +318,21 @@
                       "type": "string",
                       "operation": "equals"
                     },
-                    "leftValue": "={{ $binary.file.mimeType }}",
-                    "rightValue": "application/pdf"
+                    "leftValue": "={{ $('File ingest').item.binary.file.mimeType }}",
+                    "rightValue": "=application/pdf"
                   }
                 ],
                 "combinator": "and"
               },
-              "renameOutput": true,
-              "outputKey": "application/pdf"
+              "renameOutput": "=application/pdf"
             },
             {
               "conditions": {
                 "options": {
-                  "version": 2,
-                  "leftValue": "",
                   "caseSensitive": true,
-                  "typeValidation": "strict"
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
                 },
                 "conditions": [
                   {
@@ -341,25 +342,25 @@
                       "type": "string",
                       "operation": "equals"
                     },
-                    "leftValue": "={{ $binary.file.mimeType }}",
+                    "leftValue": "={{ $('File ingest').item.binary.file.mimeType }}",
                     "rightValue": "text/csv"
                   }
                 ],
                 "combinator": "and"
               },
-              "renameOutput": true,
-              "outputKey": "text/csv"
+              "renameOutput": "=text/csv"
             }
           ]
         },
+        "looseTypeValidation": "=",
         "options": {}
       },
       "id": "3d5ccd98-9664-4a71-9412-27cc9fb58b54",
       "name": "Switch",
       "type": "n8n-nodes-base.switch",
       "position": [
-        -1300,
-        20
+        -1780,
+        -100
       ],
       "typeVersion": 3.2
     },
@@ -370,7 +371,7 @@
         "projectId": "beezbuddy-89aa6",
         "collection": "={{ $json.organizationId }}",
         "updateKey": "agentId",
-        "columns": "=ready"
+        "columns": "status"
       },
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
@@ -521,6 +522,74 @@
       ],
       "id": "d4cfba8d-e865-428c-8ca3-2a20eee388ad",
       "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "19804b28-2d91-4c76-a3ff-256d38d5ccef",
+              "name": "organizationId",
+              "value": "={{ $('File ingest').item.json.body.organizationId }}",
+              "type": "string"
+            },
+            {
+              "id": "e5553d77-31ec-4f17-be74-27054ef7a369",
+              "name": "agentId",
+              "value": "={{ $('File ingest').item.json.body.agentId }}",
+              "type": "string"
+            },
+            {
+              "id": "bba11a13-11e8-4dbc-85d7-46892be6a73a",
+              "name": "status",
+              "value": "training",
+              "type": "string"
+            },
+            {
+              "id": "0bdf507d-87c8-42f2-ad84-b69ee31fd2d4",
+              "name": "text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1120,
+        -120
+      ],
+      "id": "c6d119cd-5414-4cd3-a1b1-73e128c2ce61",
+      "name": "transformForStatusTraining",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "upsert",
+        "projectId": "beezbuddy-89aa6",
+        "collection": "={{ $json.organizationId }}",
+        "updateKey": "=agentId",
+        "columns": "=status"
+      },
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "typeVersion": 1.1,
+      "position": [
+        -920,
+        -120
+      ],
+      "id": "903f1cac-f7b9-4397-9939-5bbd86d5bcda",
+      "name": "Set status to training",
+      "executeOnce": true,
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleApi": {
+          "id": "XBWGvfEe7IhwK8Cu",
+          "name": "Google Service Account account"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -540,7 +609,7 @@
       "main": [
         [
           {
-            "node": "Document Data",
+            "node": "transformForStatusTraining",
             "type": "main",
             "index": 0
           }
@@ -551,7 +620,7 @@
       "main": [
         [
           {
-            "node": "Document Data",
+            "node": "transformForStatusTraining",
             "type": "main",
             "index": 0
           }
@@ -769,6 +838,28 @@
           }
         ]
       ]
+    },
+    "transformForStatusTraining": {
+      "main": [
+        [
+          {
+            "node": "Set status to training",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set status to training": {
+      "main": [
+        [
+          {
+            "node": "Document Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
@@ -776,7 +867,7 @@
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "5af41867-2d37-47fa-a9c9-b7779ce43c59",
+  "versionId": "79400956-1e49-4b17-8303-f32727ca49f0",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "36207d550658bbf91be2a7d3a9212d262b1fd84b34f51d4df4ed31a5096855d0"

@@ -16,35 +16,6 @@
     },
     {
       "parameters": {
-        "fieldToSplitOut": "chunks",
-        "options": {
-          "destinationFieldName": "chunk"
-        }
-      },
-      "id": "f32c0670-78b4-4757-8c8c-680dde5aaccd",
-      "name": "splitWeb",
-      "type": "n8n-nodes-base.splitOut",
-      "position": [
-        -300,
-        300
-      ],
-      "typeVersion": 1
-    },
-    {
-      "parameters": {
-        "maxItems": 20
-      },
-      "id": "c5ac4d44-dabf-4f83-8508-076ddd34d0a7",
-      "name": "limitWeb",
-      "type": "n8n-nodes-base.limit",
-      "position": [
-        -60,
-        320
-      ],
-      "typeVersion": 1
-    },
-    {
-      "parameters": {
         "model": "llama3.2:latest",
         "options": {}
       },
@@ -89,13 +60,14 @@
     {
       "parameters": {
         "mode": "insert",
+        "tableName": "ai.embeddings",
         "options": {}
       },
       "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
       "typeVersion": 1.3,
       "position": [
         620,
-        120
+        60
       ],
       "id": "192c8cce-b603-4af0-8aa3-5b6e303f7999",
       "name": "Postgres PGVector Store1",
@@ -134,16 +106,20 @@
           "metadata": {
             "metadataValues": [
               {
-                "name": "file_id",
-                "value": "={{ new Date().getTime() }}"
-              },
-              {
                 "name": "title",
                 "value": "={{ $('Create Metadata Title & Description').item.json.output.title }}"
               },
               {
                 "name": "description",
                 "value": "={{ $('Create Metadata Title & Description').item.json.output.description }}"
+              },
+              {
+                "name": "agentId",
+                "value": "={{ $('plainTextIngestion').item.json.body.agentId }}"
+              },
+              {
+                "name": "organizationId",
+                "value": "={{ $('plainTextIngestion').item.json.body.organizationId }}"
               }
             ]
           }
@@ -173,20 +149,6 @@
     },
     {
       "parameters": {
-        "promptType": "define",
-        "text": "=<document> \n $(\"plainTextIngestion\").first().json.body.data.replace(/\\n/, '')\n</document> \n\nHere is the chunk we want to situate within the overall document:\n\n<chunk> \n{{ $json.chunk }}\n</chunk> \n\nPlease:\n- Provide a short and succinct **context** to situate this chunk within the document for improved search retrieval.\n- Return the **original chunk** exactly as provided unless a correction is necessary.\n- If the chunk contains an **incomplete number, percentage, or entity**, correct it using the full document.\n- If part of a **sentence is cut off**, reconstruct the missing words only if necessary for clarity.\n- If the chunk is part of a table, include the complete table entry to maintain data integrity\n- Do not add any additional explanations or formatting beyond the required output.\n\nFill in the following format:\n[succinct context] : [original chunk or corrected version if necessary]\n\nYour response should contain only the text that replaces these placeholders, without including the placeholder labels themselves."
-      },
-      "id": "a6390df1-f182-444a-9566-392cafbb6aac",
-      "name": "processWebContext",
-      "type": "@n8n/n8n-nodes-langchain.chainLlm",
-      "position": [
-        180,
-        160
-      ],
-      "typeVersion": 1.6
-    },
-    {
-      "parameters": {
         "httpMethod": "POST",
         "path": "plaintext",
         "options": {}
@@ -195,25 +157,12 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -1380,
-        320
+        -1780,
+        300
       ],
       "id": "d6f4706f-af79-4d0f-afc0-77aef30000e8",
       "webhookId": "dbf986b9-f389-4c8b-873b-2999b3a24736",
       "notes": "curl -X POST \"http://localhost:5678/webhook-test/scrape\" \\\n  -H \"Content-Type: application/json\" \\\n  -d \"{\\\"data\\\": \\\"About\\nHello, I'm Galo, a full stack developer. I have a passion for writing code, reading others' code, and building products from scratch. My focus is on continuous improvement, both as an engineer and as a person. I believe in steady progress, always learning, always making a difference, and always delivering results. Always growing, always contributing, always shipping.\\n\\nWork Experience\\n2021-2024\\nSenior Frontend Tech Leader\\nPart of the architecture team to build eCommerce solutions for automotive leaders like Toyota, Jaguar, Land Rover etc and tech lead for global front end developers\\n\\nReact.js • PHP Symfony • Docker\\n\\n2020-present\\nFreelance Consultant\\nI am a consultant for startup companies that accelerates their business using technology like Point of Sale system, Booking systems and static websites\\n\\nReact.js • React Native • Docker • Node.js • Vue.js • CI/CD pipelines\\n\\n2018-2021\\nSenior Full Stack Developer / Tech Lead - The Penbrothers International\\nLead engineer for delivery team consisting of 5 developers, UI/UX designer, Business analyst and a QA engineer\\n\\nReact.js • Node.js • PHP Laravel • Progressive web apps • GCP\\n\\n2018\\nEngineer / Designer - Nokia TC (PH)\\nJunior C++ software engineer for 4G technology\\n\\nC++ • Object Oriented Programming\\n\\nSamples\\nGkey Password Manager\\nhammerA simple password manager app built by myself\\n\\nReact Native - Expo SDK 50\\n\\nBooking website\\nhammerA booking website for humblesustainability.com\\n\\nReact/Node.js\\n\\nOky Period Tracker App\\nhammerA simple period tracker app for Oky - Plan International PH\\n\\nFull Stack Developer Consultant - React Native\\n\\nPOS\\nhammerA point of sale system for a local hardware store in Baguio City, Philippines\\n\\nFull Stack Developer Contractor -React.js • Node.js • MySQL\\n\\nQR App\\nhammerA simple qr scanner and generator used during the Covid pandemic to scan qr forms or generate qrs\\n\\nReact.js\\n\\nGet Weekday\\nhammerA simple library to manage dates\\n\\nJavaScript\\n\\nLet's talk\\nWhile I'm not actively seeking new opportunities at the moment, my inbox is perpetually accessible. Whether you have a question or simply want to reach out and say hello @ gbgarlejo@gmail.com, I'll do my utmost to respond to you promptly.\\\"}\"\n"
-    },
-    {
-      "parameters": {
-        "jsonSchemaExample": "{\"title\":\"\",\"description\":\"\"}"
-      },
-      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
-      "typeVersion": 1.3,
-      "position": [
-        -660,
-        580
-      ],
-      "id": "7604f927-6a3c-4339-8547-523b3636e2aa",
-      "name": "Structured Output Parser1"
     },
     {
       "parameters": {
@@ -254,44 +203,44 @@
     },
     {
       "parameters": {
-        "mode": "raw",
-        "jsonOutput": "={\n  \"data\":  {{ JSON.stringify($json.body.data) }}\n} ",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "04dc9822-fab2-4ea9-b766-3c2279b53a2e",
+              "name": "data",
+              "value": "={{ $json.body.data }}",
+              "type": "string"
+            },
+            {
+              "id": "9a430a03-eae3-4b6c-8553-637318bdc6e6",
+              "name": "status",
+              "value": "training",
+              "type": "string"
+            },
+            {
+              "id": "c7575c6a-727b-4b0a-ad26-3fbd83cf2488",
+              "name": "agentId",
+              "value": "={{ $json.body.agentId }}",
+              "type": "string"
+            },
+            {
+              "id": "afe03d40-6f28-45cc-a362-b57a27feaacd",
+              "name": "organizationId",
+              "value": "={{ $json.body.organizationId }}",
+              "type": "string"
+            }
+          ]
+        },
         "options": {}
       },
       "id": "2556a63b-bb91-411a-9a74-3ab1b3e1719a",
       "name": "Document Data",
       "type": "n8n-nodes-base.set",
       "position": [
-        -1140,
-        320
+        -1480,
+        280
       ],
       "typeVersion": 3.4
-    },
-    {
-      "parameters": {
-        "authentication": "serviceAccount",
-        "operation": "upsert",
-        "projectId": "beezbuddy-89aa6",
-        "collection": "={{ $json.organizationId }}",
-        "updateKey": "agentId",
-        "columns": "=ready"
-      },
-      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
-      "typeVersion": 1.1,
-      "position": [
-        1760,
-        240
-      ],
-      "id": "d89fa04d-49ad-4f74-ba26-309204ec0101",
-      "name": "Create or update a document",
-      "executeOnce": false,
-      "alwaysOutputData": false,
-      "credentials": {
-        "googleApi": {
-          "id": "XBWGvfEe7IhwK8Cu",
-          "name": "Google Service Account account"
-        }
-      }
     },
     {
       "parameters": {
@@ -300,20 +249,20 @@
             {
               "id": "19804b28-2d91-4c76-a3ff-256d38d5ccef",
               "name": "organizationId",
-              "value": "={{ $('Web Ingest').item.json.body.organizationId }}",
+              "value": "={{ $('plainTextIngestion').item.json.body.organizationId }}",
               "type": "string"
             },
             {
               "id": "e5553d77-31ec-4f17-be74-27054ef7a369",
               "name": "agentId",
-              "value": "={{ $('Web Ingest').item.json.body.agentId }}",
+              "value": "={{ $('plainTextIngestion').item.json.body.agentId }}",
               "type": "string"
             },
             {
               "id": "bba11a13-11e8-4dbc-85d7-46892be6a73a",
-              "name": "ready",
-              "value": true,
-              "type": "boolean"
+              "name": "status",
+              "value": "active",
+              "type": "string"
             }
           ]
         },
@@ -331,6 +280,97 @@
     },
     {
       "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "upsert",
+        "projectId": "beezbuddy-89aa6",
+        "collection": "={{ $('Edit Fields').item.json.organizationId }}",
+        "updateKey": "agentId",
+        "columns": "=status"
+      },
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "typeVersion": 1.1,
+      "position": [
+        2020,
+        260
+      ],
+      "id": "e5684e66-e8df-4fd7-a025-a52deddc942f",
+      "name": "Update status to active",
+      "executeOnce": false,
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleApi": {
+          "id": "XBWGvfEe7IhwK8Cu",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('plainTextIngestion').item.json.body.embeddingsToReplace }}",
+                    "rightValue": "undefined",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "f0e2d43c-4991-45ac-8539-363f933d0a2a"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "No embeddings to replace, skip deletion"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "f40f9b6d-b82c-48d7-ab96-c1aeb8a5536b",
+                    "leftValue": "={{ $('plainTextIngestion').item.json.body.embeddingsToReplace }}",
+                    "rightValue": "undefined",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEquals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "embeddings detected, delete it"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1380,
+        300
+      ],
+      "id": "4a73ec20-5c41-45f7-8cde-4636da319d56",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
         "method": "DELETE",
         "url": "http://localhost:3000/api/s2s/embeddings",
         "authentication": "genericCredentialType",
@@ -343,17 +383,99 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1480,
-        220
+        1680,
+        460
       ],
-      "id": "13eb4348-9954-4cd9-9a04-878916fb390d",
-      "name": "HTTP Request",
+      "id": "1f3451c0-a070-4389-b333-3abc3576d49b",
+      "name": "HTTP Request1",
       "credentials": {
         "httpBasicAuth": {
           "id": "pSBWZa1YRUbmHqJj",
           "name": "s2s"
         }
       }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "upsert",
+        "projectId": "beezbuddy-89aa6",
+        "collection": "={{ $('plainTextIngestion').item.json.body.organizationId }}",
+        "updateKey": "=agentId",
+        "columns": "=status"
+      },
+      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
+      "typeVersion": 1.1,
+      "position": [
+        -1220,
+        300
+      ],
+      "id": "cfac032f-3269-4343-9136-c134e53be5d8",
+      "name": "Set status to training",
+      "executeOnce": false,
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleApi": {
+          "id": "XBWGvfEe7IhwK8Cu",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\"title\":\"\",\"description\":\"\"}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -660,
+        580
+      ],
+      "id": "7604f927-6a3c-4339-8547-523b3636e2aa",
+      "name": "transform to title and description"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "chunks",
+        "options": {
+          "destinationFieldName": "chunk"
+        }
+      },
+      "id": "f32c0670-78b4-4757-8c8c-680dde5aaccd",
+      "name": "split",
+      "type": "n8n-nodes-base.splitOut",
+      "position": [
+        -300,
+        300
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "maxItems": 20
+      },
+      "id": "c5ac4d44-dabf-4f83-8508-076ddd34d0a7",
+      "name": "limit",
+      "type": "n8n-nodes-base.limit",
+      "position": [
+        -60,
+        320
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=<document> \n $(\"plainTextIngestion\").first().json.body.data.replace(/\\n/, '')\n</document> \n\nHere is the chunk we want to situate within the overall document:\n\n<chunk> \n{{ $json.chunk }}\n</chunk> \n\nPlease:\n- Provide a short and succinct **context** to situate this chunk within the document for improved search retrieval.\n- Return the **original chunk** exactly as provided unless a correction is necessary.\n- If the chunk contains an **incomplete number, percentage, or entity**, correct it using the full document.\n- If part of a **sentence is cut off**, reconstruct the missing words only if necessary for clarity.\n- If the chunk is part of a table, include the complete table entry to maintain data integrity\n- Do not add any additional explanations or formatting beyond the required output.\n\nFill in the following format:\n[succinct context] : [original chunk or corrected version if necessary]\n\nYour response should contain only the text that replaces these placeholders, without including the placeholder labels themselves."
+      },
+      "id": "a6390df1-f182-444a-9566-392cafbb6aac",
+      "name": "processContext",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "position": [
+        180,
+        160
+      ],
+      "typeVersion": 1.6
     }
   ],
   "pinData": {},
@@ -362,29 +484,7 @@
       "main": [
         [
           {
-            "node": "splitWeb",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "splitWeb": {
-      "main": [
-        [
-          {
-            "node": "limitWeb",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "limitWeb": {
-      "main": [
-        [
-          {
-            "node": "processWebContext",
+            "node": "split",
             "type": "main",
             "index": 0
           }
@@ -395,7 +495,7 @@
       "ai_languageModel": [
         [
           {
-            "node": "processWebContext",
+            "node": "processContext",
             "type": "ai_languageModel",
             "index": 0
           }
@@ -446,34 +546,12 @@
         ]
       ]
     },
-    "processWebContext": {
-      "main": [
-        [
-          {
-            "node": "Summarize1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "plainTextIngestion": {
       "main": [
         [
           {
             "node": "Document Data",
             "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Structured Output Parser1": {
-      "ai_outputParser": [
-        [
-          {
-            "node": "Create Metadata Title & Description",
-            "type": "ai_outputParser",
             "index": 0
           }
         ]
@@ -505,7 +583,7 @@
       "main": [
         [
           {
-            "node": "Create Metadata Title & Description",
+            "node": "Set status to training",
             "type": "main",
             "index": 0
           }
@@ -516,18 +594,7 @@
       "main": [
         [
           {
-            "node": "HTTP Request",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "HTTP Request": {
-      "main": [
-        [
-          {
-            "node": "Create or update a document",
+            "node": "Switch",
             "type": "main",
             "index": 0
           }
@@ -544,13 +611,97 @@
           }
         ]
       ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Update status to active",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Update status to active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set status to training": {
+      "main": [
+        [
+          {
+            "node": "Create Metadata Title & Description",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "transform to title and description": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Create Metadata Title & Description",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "split": {
+      "main": [
+        [
+          {
+            "node": "limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "limit": {
+      "main": [
+        [
+          {
+            "node": "processContext",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "processContext": {
+      "main": [
+        [
+          {
+            "node": "Summarize1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "fbce89fc-c591-4b52-b982-e0461afa7abc",
+  "versionId": "4cd1e747-bafe-47ab-8e88-d70f12166afa",
   "meta": {
     "instanceId": "36207d550658bbf91be2a7d3a9212d262b1fd84b34f51d4df4ed31a5096855d0"
   },

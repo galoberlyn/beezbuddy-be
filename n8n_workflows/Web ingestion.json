@@ -206,7 +206,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=Create metadata title and metadata description based on the document specified below (below ##Document). Metadata title and metadata description will be used to seperate data in vector DB that will be used for RAG.\n\nNote: Do not output the schema or other non related data. Just output the JSON i mentioned\n\n##Document\n{{ $('Parse Static HTML').item.json.content }}",
+        "text": "=Create metadata title and metadata description based on the document specified below (below ##Document). Metadata title and metadata description will be used to seperate data in vector DB that will be used for RAG.\n\nNote: Do not output the schema or other non related data. Just output the JSON i mentioned.\n\n- Example of output: {\n\"output\": \n{\n\"title\": \n\"...\",\n\"description\": \n\"...\"\n}\n\n##Document\n{{ $('Parse Static HTML').item.json.content }}",
         "hasOutputParser": true
       },
       "id": "2d4d3855-f633-457b-b04a-92365d856e16",
@@ -261,7 +261,7 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -1640,
+        -1960,
         160
       ],
       "id": "092a3453-1460-425f-8fe9-9835a113bd88",
@@ -359,8 +359,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -1460,
-        440
+        -1640,
+        160
       ],
       "id": "680ec709-5f54-44ae-b3e2-ce901e214426",
       "name": "transformForStatusTraining",
@@ -378,8 +378,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -1220,
-        580
+        -1400,
+        180
       ],
       "id": "1d13e55f-9452-49ce-88be-f7353ff3a7e5",
       "name": "Set status to training",
@@ -633,11 +633,6 @@
       "main": [
         [
           {
-            "node": "Parse Static HTML",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "transformForStatusTraining",
             "type": "main",
             "index": 0
@@ -711,13 +706,24 @@
           }
         ]
       ]
+    },
+    "Set status to training": {
+      "main": [
+        [
+          {
+            "node": "Parse Static HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "0df6fad3-32dc-4954-825a-1ce2a9719843",
+  "versionId": "27da5e4e-b589-49d6-af32-e0b4e449cf42",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "36207d550658bbf91be2a7d3a9212d262b1fd84b34f51d4df4ed31a5096855d0"

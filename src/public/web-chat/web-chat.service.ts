@@ -82,6 +82,7 @@ export class WebChatService {
     Answer using only these sources:
     - ##PRODUCT_KB  → product/company facts
     - ##CONVERSATION → prior user/assistant turns
+    - ##PRODUCT_DESCRIPTION → A brief description of the knowledge base.
     - ##ASSISTANT_PROFILE → only for questions about your identity (name/role/brand). Ignore any other names in ##PRODUCT_KB for identity.
     
     Rules:
@@ -100,6 +101,8 @@ export class WebChatService {
     ##PRODUCT_KB
     {context}
     
+    ##PRODUCT_DESCRIPTION
+    {product_description}
     ##CONVERSATION
     {history}
       `.trim(),
@@ -119,6 +122,7 @@ export class WebChatService {
       context: llmContext,
       brand_name: agent.organization.name,
       question: createWebChatDto.question,
+      product_description: agent.description,
       history: conversationHistory,
       name: agent.organization.agents[0].name,
     });

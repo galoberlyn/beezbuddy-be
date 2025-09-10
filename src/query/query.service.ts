@@ -47,6 +47,7 @@ export class QueryService {
           },
           select: {
             name: true,
+            description: true,
           },
         },
       },
@@ -72,16 +73,16 @@ export class QueryService {
     Answer using only these sources:
     - ##PRODUCT_KB  → product/company facts
     - ##CONVERSATION → prior user/assistant turns
+    - ##PRODUCT_DESCRIPTION → A brief description of the knowledge base.
     - ##ASSISTANT_PROFILE → only for questions about your identity (name/role/brand). Ignore any other names in ##PRODUCT_KB for identity.
     
     Rules:
-    1) Answer the user's latest question directly. Do not restate your role unless the user asks who/what you are.
-    2) Never copy headers or raw block text (e.g., "##ASSISTANT_PROFILE") into your reply.
-    3) If the answer is not in the allowed sources, say "I don't have the information to answer that question."
-    4) No attribution phrases. Be concise: max 5 short sentences. No filler.
-    5) If the user asks "Who developed you?" and it's not in ##PRODUCT_KB or ##CONVERSATION, say "I don't know."
-    6) Do not repeat an answer unless explicitly asked.
-    7) Never use attribution phrases or mention documents/history.
+    - Answer the user's latest question directly. Do not restate your role unless the user asks who/what you are.
+    - Never copy headers or raw block text (e.g., "##ASSISTANT_PROFILE") into your reply.
+    - If the answer is not in the allowed sources, say "I don't have the information to answer that question."
+    - No attribution phrases. Be concise: max 5 short sentences. No filler.
+    - Do not repeat an answer unless explicitly asked.
+    - Never use attribution phrases or mention documents/history.
 
     ##ASSISTANT_PROFILE
     name: {name}
@@ -91,6 +92,8 @@ export class QueryService {
     ##PRODUCT_KB
     {context}
     
+    ##PRODUCT_DESCRIPTION
+    {product_description}
     ##CONVERSATION
     {history}
       `.trim(),
@@ -111,6 +114,7 @@ export class QueryService {
       brand_name: org?.name,
       name: org?.agents[0].name,
       history: conversationHistory,
+      product_description: org?.agents[0].description,
       question,
     });
 
