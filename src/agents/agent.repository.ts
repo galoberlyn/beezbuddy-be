@@ -41,6 +41,7 @@ export class AgentRepository {
         authorizedDomains: true,
         organization: true,
         links: true,
+        documents: true,
       },
     });
   }

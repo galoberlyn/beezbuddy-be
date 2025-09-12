@@ -13,7 +13,7 @@ import {
 import { S3Service } from 'src/aws/s3/s3.service';
 import { AiModelsService } from 'src/ai-models/ai-models.service';
 import { ModelType } from 'src/ai-models/strategies/strategy-factory';
-import { Agents, AgentType, Prisma } from '@prisma/client';
+import { Agents, AgentType, KnowledgeBaseType, Prisma } from '@prisma/client';
 import { AgentRepository } from './agent.repository';
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -71,6 +71,12 @@ export class WebAgentsService {
       }
     }
 
+    if (formData['authorizedDomains']) {
+      createWebsiteAgentDto.authorizedDomains = JSON.parse(
+        formData['authorizedDomains'],
+      );
+    }
+
     // Extract knowledge base data
     createWebsiteAgentDto.knowledgeBase = {
       type: formData['knowledgeBase.type'],
@@ -102,18 +108,11 @@ export class WebAgentsService {
   }
 
   async create(data: CreateWebsiteAgentDto, orgId: string) {
-    if (process.env.NODE_ENV !== 'production') {
-      this.aiModelService.switchStrategy(ModelType.OLLAMA);
-    }
     let s3Url: string | null = null;
 
     // Upload avatar to s3, get the link
     if (data.avatar) {
-      s3Url = await this.s3Service.uploadFile(
-        data.avatar,
-        orgId,
-        `${orgId}/avatar/`,
-      );
+      s3Url = await this.s3Service.uploadFile(data.avatar, orgId, `/avatar/`);
     }
 
     // TODO: wrap this in a transaction so we can revert
@@ -128,66 +127,19 @@ export class WebAgentsService {
         },
       },
       persona: data.persona,
-    };
-
-    if (data.knowledgeBase.type === 'links' && data.knowledgeBase.links) {
-      agentPayload.links = {
+      authorizedDomains: {
         createMany: {
-          data: data.knowledgeBase.links.map(link => ({
-            link: link.url,
-            isSPA: link.isSPA,
+          data: data.authorizedDomains?.map(domain => ({
+            domain: domain.url,
           })),
         },
-      };
-    }
+      },
+    };
 
     try {
       let agent: Agents | null = null;
       await this.databaseService.$transaction(async tx => {
         agent = await this.agentRepository.create(agentPayload, tx);
-        if (
-          data.knowledgeBase.type === 'documents' &&
-          data.knowledgeBase.documents
-        ) {
-          const documentUrls =
-            await this.ingestionService.processDocumentIngestion(
-              data,
-              orgId,
-              agent,
-              undefined,
-            );
-          console.log('documentUrls', documentUrls);
-        }
-
-        if (
-          data.knowledgeBase.type === 'plaintext' &&
-          data.knowledgeBase.freeText
-        ) {
-          await this.ingestionService.processPlainTextIngestion(
-            data,
-            orgId,
-            agent,
-            undefined,
-          );
-        }
-
-        if (data.knowledgeBase.type === 'links' && data.knowledgeBase.links) {
-          const links = data.knowledgeBase.links;
-          try {
-            await this.ingestionService.processLinksIngestion(
-              links,
-              orgId,
-              agent,
-              undefined,
-            );
-          } catch (e) {
-            console.log('Error:', e);
-            throw new HttpException(
-              'Provided link is not a valid URL',
-              HttpStatus.BAD_REQUEST,
-            );
-          }
-        }
       });
 
       return {
@@ -250,6 +202,7 @@ export class WebAgentsService {
           persona: data.persona,
           description: data.agentDescription,
           avatar: s3Url ? s3Url : agent.avatar,
+          knowledgeBaseType: data.knowledgeBase.type as any,
         },
         where: {
           id: id,
@@ -257,6 +210,10 @@ export class WebAgentsService {
       });
 
       await tx.agentWebLinks.deleteMany({
+        where: { agentId: id },
+      });
+
+      await tx.agentDocuments.deleteMany({
         where: { agentId: id },
       });
 
@@ -285,7 +242,15 @@ export class WebAgentsService {
               agent,
               embeddingsToReplace,
             );
-          console.log('documentUrls', documentUrls);
+
+          if (documentUrls) {
+            await tx.agentDocuments.createMany({
+              data: documentUrls.map(document => ({
+                documentLink: document,
+                agentId: agent.id,
+              })),
+            });
+          }
         } else {
           throw new BadRequestException('No documents provided');
         }
@@ -306,13 +271,15 @@ export class WebAgentsService {
 
       return {
         message: 'Agent update triggered',
-        data: agent,
+        data: { ...agent, knowledgeBaseType: data.knowledgeBase.type },
       };
     });
   }
 
   async deleteAgent(id: string, orgId: string) {
     const success = await this.agentRepository.deleteById(id, orgId);
+
+    // DELETE FROMS3 TODO
 
     if (!success) {
       throw new BadRequestException('Failed to delete agent');
@@ -337,7 +304,10 @@ export class WebAgentsService {
         try {
           const command = new GetObjectCommand({
             Bucket: 'beezbuddystorage',
-            Key: `${orgId}/avatar/sign2.png`,
+            Key: `${agent.avatar}`.replace(
+              `https://${process.env.AWS_S3_BUCKET_NAME}.s3.amazonaws.com/`,
+              '',
+            ),
           });
 
           const signedUrl = await getSignedUrl(s3Client, command, {
@@ -368,13 +338,18 @@ export class WebAgentsService {
     if (!agent) {
       throw new NotFoundException('Agent not found');
     }
-    const embedding = await this.embeddingRepository.findByAgentId(agent?.id);
-    const content = embedding.map(e => e.text).join('\n');
 
-    return {
-      ...agent,
-      freeText: content,
-    };
+    if (agent.knowledgeBaseType === KnowledgeBaseType.plaintext) {
+      const embedding = await this.embeddingRepository.findByAgentId(agent?.id);
+      const content = embedding.map(e => e.text).join('\n');
+
+      return {
+        ...agent,
+        freeText: content,
+      };
+    }
+
+    return agent;
   }
 
   private validateRequiredFields(formData: any): void {

@@ -61,6 +61,13 @@ export class CreateWebsiteAgentDto {
   })
   knowledgeBase: KnowledgeBaseDto;
 
+  @ApiProperty({
+    description: 'The authorized domains of the agent stringified',
+    type: Array<{ url: string }>,
+    required: false,
+  })
+  authorizedDomains?: any;
+
   @ApiProperty({ description: 'The persona of the agent' })
   persona: string;
 }
