@@ -5,6 +5,7 @@ import { AgentRepository } from 'src/agents/agent.repository';
 import { DatabaseService } from 'src/database/database.service';
 import { AiModelsService } from 'src/ai-models/ai-models.service';
 import { StrategyFactory } from 'src/ai-models/strategies/strategy-factory';
+import { PublicConversationsRepository } from '../conversations/public-conversations.repository';
 
 @Module({
   controllers: [WebChatController],
@@ -14,6 +15,7 @@ import { StrategyFactory } from 'src/ai-models/strategies/strategy-factory';
     DatabaseService,
     AiModelsService,
     StrategyFactory,
+    PublicConversationsRepository,
   ],
   exports: [WebChatService],
 })

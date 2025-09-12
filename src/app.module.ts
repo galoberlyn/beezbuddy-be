@@ -15,6 +15,9 @@ import { ConversationModule } from './conversations/conversations.module';
 import { EmbeddingModule } from './embeddings/embedding.module';
 import { WebChatModule } from './public/web-chat/web-chat.module';
 import { N8nModule } from './n8n/n8n.module';
+import { IngestionModule } from './ingestion/ingestion.module';
+import { PgModule } from './database/pg.module';
+import { EmbeddingsModule } from './s2s/embeddings/embeddings.module';
 
 @Module({
   imports: [
@@ -32,6 +35,9 @@ import { N8nModule } from './n8n/n8n.module';
     EmbeddingModule,
     WebChatModule,
     N8nModule,
+    IngestionModule,
+    PgModule,
+    EmbeddingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

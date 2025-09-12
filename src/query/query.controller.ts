@@ -10,19 +10,6 @@ import { ApiBearerAuth } from '@nestjs/swagger';
 export class QueryController {
   constructor(private readonly queryService: QueryService) {}
 
-  // @UseGuards(FirebaseAuthGuard)
-  // @Post('ask')
-  // async ask(
-  //   @Body() body: QueryDto,
-  //   @Req() req: Request & DecodedFirebaseTokenWithCustomClaims,
-  // ) {
-  //   return this.queryService.ask(
-  //     body.question,
-  //     req.user.org,
-  //     req.user.userDbId,
-  //   );
-  // }
-
   @UseGuards(FirebaseAuthGuard)
   @Post('ask/test/:agentId')
   async askTest(

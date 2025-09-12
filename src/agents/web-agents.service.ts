@@ -6,18 +6,20 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import { CreateWebsiteAgentDto } from './dto/create-website-agent.dto';
+import {
+  CreateWebsiteAgentDto,
+  KnowledgeBaseDto,
+} from './dto/create-website-agent.dto';
 import { S3Service } from 'src/aws/s3/s3.service';
 import { AiModelsService } from 'src/ai-models/ai-models.service';
 import { ModelType } from 'src/ai-models/strategies/strategy-factory';
-import { LangchainService } from 'src/langchain/langchain.service';
-import { Agents, AgentType, Prisma } from '@prisma/client';
+import { Agents, AgentType, KnowledgeBaseType, Prisma } from '@prisma/client';
 import { AgentRepository } from './agent.repository';
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { EmbeddingRepository } from 'src/embeddings/embedding.repository';
-import { N8nService } from 'src/n8n/n8n.service';
-import puppeteer from 'puppeteer';
+import { IngestionService } from 'src/ingestion/ingestion.service';
+import { DatabaseService } from 'src/database/database.service';
 
 const s3Client = new S3Client({
   region: 'us-east-1',
@@ -32,17 +34,18 @@ export class WebAgentsService {
   constructor(
     private readonly s3Service: S3Service,
     private readonly aiModelService: AiModelsService,
-    private readonly langchainService: LangchainService,
+    private readonly ingestionService: IngestionService,
     private readonly agentRepository: AgentRepository,
     private readonly embeddingRepository: EmbeddingRepository,
-    private readonly n8nService: N8nService,
+    private readonly databaseService: DatabaseService,
   ) {}
   logger = new Logger(WebAgentsService.name);
 
-  createFromMultipartFormData(
+  createOrUpdateFromMultipartFormData(
     formData: any,
     files: Express.Multer.File[],
-    organization: string,
+    orgId: string,
+    agentId?: string,
   ) {
     // Validate required fields
     this.validateRequiredFields(formData);
@@ -52,22 +55,38 @@ export class WebAgentsService {
 
     // Extract text fields
     createWebsiteAgentDto.agentName = formData.agentName as string;
+    createWebsiteAgentDto.agentDescription =
+      formData.agentDescription as string;
     createWebsiteAgentDto.persona = formData.persona as string;
-    createWebsiteAgentDto.type = formData['knowledgeBase.type'];
+    createWebsiteAgentDto.knowledgeBase = new KnowledgeBaseDto();
+
+    if (formData['knowledgeBase.type'] === 'links') {
+      try {
+        createWebsiteAgentDto.knowledgeBase.links = JSON.parse(
+          formData['knowledgeBase.links'],
+        );
+      } catch (error) {
+        this.logger.error(error);
+        throw new BadRequestException('Invalid link payload', error);
+      }
+    }
+
+    if (formData['authorizedDomains']) {
+      createWebsiteAgentDto.authorizedDomains = JSON.parse(
+        formData['authorizedDomains'],
+      );
+    }
 
     // Extract knowledge base data
     createWebsiteAgentDto.knowledgeBase = {
       type: formData['knowledgeBase.type'],
       freeText: formData['knowledgeBase.freeText'] as string,
-      links:
-        formData['knowledgeBase.type'] === 'links'
-          ? this.parseLinks(formData)
-          : [],
+      links: createWebsiteAgentDto.knowledgeBase.links,
       documents: [],
     };
 
     // Process uploaded files
-    if (createWebsiteAgentDto.type === 'documents') {
+    if (createWebsiteAgentDto.knowledgeBase.type === 'documents') {
       const documents = files.filter(
         file => file.fieldname === 'knowledgeBase.documents',
       );
@@ -81,93 +100,194 @@ export class WebAgentsService {
         createWebsiteAgentDto.avatar = avatar;
       }
     }
-    return this.create(createWebsiteAgentDto, organization);
+    if (!agentId) {
+      return this.create(createWebsiteAgentDto, orgId);
+    }
+
+    return this.updateWebsiteAgent(agentId, createWebsiteAgentDto, orgId);
   }
 
-  async create(data: CreateWebsiteAgentDto, organization: string) {
-    if (process.env.NODE_ENV !== 'production') {
-      this.aiModelService.switchStrategy(ModelType.OLLAMA);
-    }
+  async create(data: CreateWebsiteAgentDto, orgId: string) {
     let s3Url: string | null = null;
 
     // Upload avatar to s3, get the link
     if (data.avatar) {
-      if (process.env.NODE_ENV !== 'production') {
-        s3Url =
-          'https://beezbuddystorage.s3.amazonaws.com/ad2bff82-8cf5-4b52-ab5d-28d784d5ad84/ad2bff82-8cf5-4b52-ab5d-28d784d5ad84/avatar/sign2.png';
-      } else {
-        s3Url = await this.s3Service.uploadFile(
-          data.avatar,
-          organization,
-          `${organization}/avatar/`,
-        );
-      }
+      s3Url = await this.s3Service.uploadFile(data.avatar, orgId, `/avatar/`);
     }
 
     // TODO: wrap this in a transaction so we can revert
     const agentPayload: Prisma.AgentsCreateInput = {
       name: data.agentName,
       type: AgentType.website,
+      description: data.agentDescription,
       avatar: s3Url,
       organization: {
         connect: {
-          id: organization,
+          id: orgId,
         },
       },
       persona: data.persona,
+      authorizedDomains: {
+        createMany: {
+          data: data.authorizedDomains?.map(domain => ({
+            domain: domain.url,
+          })),
+        },
+      },
     };
 
-    if (data.type === 'links' && data.knowledgeBase.links) {
-      agentPayload.links = {
-        createMany: {
-          data: data.knowledgeBase.links.map(link => ({ link })),
-        },
+    try {
+      let agent: Agents | null = null;
+      await this.databaseService.$transaction(async tx => {
+        agent = await this.agentRepository.create(agentPayload, tx);
+      });
+
+      return {
+        message: 'Agent created successfully',
+        data: agent,
       };
+    } catch (error) {
+      this.logger.error(
+        'Failed to create an agent, something went wrong',
+        error,
+      );
+      throw new HttpException(
+        'Failed to create an agent, something went wrong',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * 1. Update agent in db/s3 OK
+   * 2. Update firestore agent status to training WIP
+   * 3. Update ingestion in n8n OK
+   * 4. IF n8n is successful, delete old embedding data and create new embedding in n8n OK
+   * 5. firestore for frontend to let the user know that the agent is ready
+   *
+   * @param id
+   * @param data
+   * @param orgId
+   */
+  async updateWebsiteAgent(
+    id: string,
+    data: CreateWebsiteAgentDto,
+    orgId: string,
+  ) {
+    if (process.env.NODE_ENV !== 'production') {
+      this.aiModelService.switchStrategy(ModelType.OLLAMA);
     }
 
-    const agent = await this.agentRepository.create(agentPayload);
+    const agent = await this.agentRepository.findById(id, orgId);
+    if (!agent) {
+      throw new HttpException('Agent not found', HttpStatus.NOT_FOUND);
+    }
+    const embeddingsToReplace = await this.embeddingRepository.findByAgentId(
+      agent.id,
+    );
 
-    if (data.type === 'documents') {
-      if (data.knowledgeBase.documents) {
-        const documentUrls = await this.processDocumentIngestion(
-          data,
-          organization,
+    let s3Url: string | null = null;
+    if (data.avatar) {
+      s3Url = await this.s3Service.uploadFile(
+        data.avatar,
+        orgId,
+        `${orgId}/avatar/`,
+      );
+    }
+
+    await this.databaseService.$transaction(async tx => {
+      await tx.agents.update({
+        data: {
+          name: data.agentName,
+          persona: data.persona,
+          description: data.agentDescription,
+          avatar: s3Url ? s3Url : agent.avatar,
+          knowledgeBaseType: data.knowledgeBase.type as any,
+        },
+        where: {
+          id: id,
+        },
+      });
+
+      await tx.agentWebLinks.deleteMany({
+        where: { agentId: id },
+      });
+
+      await tx.agentDocuments.deleteMany({
+        where: { agentId: id },
+      });
+
+      if (data.knowledgeBase.type === 'links' && data.knowledgeBase.links) {
+        await tx.agentWebLinks.createMany({
+          data: data.knowledgeBase.links.map(link => ({
+            link: link.url,
+            isSPA: link.isSPA,
+            agentId: id,
+          })),
+        });
+        await this.ingestionService.processLinksIngestion(
+          data.knowledgeBase.links,
+          orgId,
           agent,
+          embeddingsToReplace,
         );
-        console.log('documentUrls', documentUrls);
-      } else {
-        throw new BadRequestException('No documents provided');
       }
-    }
 
-    if (data.type === 'plaintext') {
-      if (data.knowledgeBase.freeText) {
-        await this.processPlainTextIngestion(data, organization, agent);
-      } else {
-        throw new BadRequestException('No knowledge base provided');
-      }
-    }
+      if (data.knowledgeBase.type === 'documents') {
+        if (data.knowledgeBase.documents) {
+          const documentUrls =
+            await this.ingestionService.processDocumentIngestion(
+              data,
+              orgId,
+              agent,
+              embeddingsToReplace,
+            );
 
-    if (data.type === 'links') {
-      if (data.knowledgeBase.links) {
-        const links = data.knowledgeBase.links;
-        try {
-          await this.processLinksIngestion(links, organization, agent, true);
-        } catch (e) {
-          console.log('Error:', e);
-          throw new HttpException(
-            'Provided link is not a valid URL',
-            HttpStatus.BAD_REQUEST,
-          );
+          if (documentUrls) {
+            await tx.agentDocuments.createMany({
+              data: documentUrls.map(document => ({
+                documentLink: document,
+                agentId: agent.id,
+              })),
+            });
+          }
+        } else {
+          throw new BadRequestException('No documents provided');
         }
-      } else {
-        throw new BadRequestException('No links provided');
       }
+
+      if (data.knowledgeBase.type === 'plaintext') {
+        if (data.knowledgeBase.freeText) {
+          await this.ingestionService.processPlainTextIngestion(
+            data,
+            orgId,
+            agent,
+            embeddingsToReplace,
+          );
+        } else {
+          throw new BadRequestException('No knowledge base provided');
+        }
+      }
+
+      return {
+        message: 'Agent update triggered',
+        data: { ...agent, knowledgeBaseType: data.knowledgeBase.type },
+      };
+    });
+  }
+
+  async deleteAgent(id: string, orgId: string) {
+    const success = await this.agentRepository.deleteById(id, orgId);
+
+    // DELETE FROMS3 TODO
+
+    if (!success) {
+      throw new BadRequestException('Failed to delete agent');
     }
 
     return {
-      message: 'Agent created successfully',
-      data: agent,
+      message: 'Agent deleted successfully',
+      data: success,
     };
   }
 
@@ -184,7 +304,10 @@ export class WebAgentsService {
         try {
           const command = new GetObjectCommand({
             Bucket: 'beezbuddystorage',
-            Key: `${orgId}/avatar/sign2.png`,
+            Key: `${agent.avatar}`.replace(
+              `https://${process.env.AWS_S3_BUCKET_NAME}.s3.amazonaws.com/`,
+              '',
+            ),
           });
 
           const signedUrl = await getSignedUrl(s3Client, command, {
@@ -215,17 +338,19 @@ export class WebAgentsService {
     if (!agent) {
       throw new NotFoundException('Agent not found');
     }
-    const embedding = await this.embeddingRepository.findByAgentId(agent?.id);
 
-    const content = embedding.map(e => e.text).join('\n');
+    if (agent.knowledgeBaseType === KnowledgeBaseType.plaintext) {
+      const embedding = await this.embeddingRepository.findByAgentId(agent?.id);
+      const content = embedding.map(e => e.text).join('\n');
 
-    return {
-      ...agent,
-      freeText: content,
-    };
+      return {
+        ...agent,
+        freeText: content,
+      };
+    }
+
+    return agent;
   }
-
-  // updateWebsiteAgent(id: string, body: any, orgId: string) {}
 
   private validateRequiredFields(formData: any): void {
     if (!formData.agentName || typeof formData.agentName !== 'string') {
@@ -236,133 +361,6 @@ export class WebAgentsService {
 
     if (!formData.persona || typeof formData.persona !== 'string') {
       throw new BadRequestException('persona is required and must be a string');
-    }
-  }
-
-  private parseLinks(formData: any): string[] {
-    const links: string[] = [];
-    const linkKeys = Object.keys(formData).filter(key =>
-      key.startsWith('knowledgeBase.links['),
-    );
-
-    linkKeys.forEach(key => {
-      const match = key.match(/knowledgeBase\.links\[(\d+)\]\.url/);
-      if (match) {
-        const index = parseInt(match[1]);
-        const url = formData[key] as string;
-        if (url && typeof url === 'string') {
-          links[index] = url;
-        }
-      }
-    });
-
-    return links.filter(link => link);
-  }
-
-  private async processDocumentIngestion(
-    data: CreateWebsiteAgentDto,
-    organization: string,
-    agent: Agents,
-  ) {
-    const documentUrls: string[] = [];
-    console.log(data);
-
-    if (data.knowledgeBase.documents) {
-      // Upload documents to S3
-      try {
-        const documentUploads = await Promise.all(
-          data.knowledgeBase.documents.map((document: Express.Multer.File) =>
-            this.s3Service.uploadFile(
-              document,
-              organization,
-              `${organization}/documents/`,
-            ),
-          ),
-        );
-        if (documentUploads) {
-          documentUrls.push(...documentUploads);
-        }
-      } catch (error) {
-        this.logger.error('Failed to upload documents to S3:', error);
-        throw error;
-      }
-
-      try {
-        await this.n8nService.ingestDocument({
-          files: data.knowledgeBase.documents,
-          agentId: agent.id,
-          organizationId: organization,
-        });
-        return documentUrls;
-      } catch (error) {
-        this.logger.error('Failed to ingest documents:', error);
-        throw error;
-      }
-    }
-  }
-
-  private async processPlainTextIngestion(
-    data: CreateWebsiteAgentDto,
-    organization: string,
-    agent: Agents,
-  ) {
-    await this.n8nService.ingestPlainText({
-      data: data.knowledgeBase.freeText || '',
-      agentId: agent.id,
-      organizationId: organization,
-    });
-  }
-
-  private async processLinksIngestion(
-    links: string[],
-    organization: string,
-    agent: Agents,
-    isSPA: boolean,
-  ) {
-    if (isSPA) {
-      const browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      });
-
-      for (const link of links) {
-        const page = await browser.newPage();
-        console.log('New page created');
-        await page.setDefaultTimeout(30000);
-        console.log('Set default timeout');
-        await page.setUserAgent(
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        );
-        try {
-          console.log('Going to link:', link);
-          await page.goto(link, { waitUntil: 'networkidle2' });
-          const html = await page.content();
-          await browser.close();
-
-          await this.n8nService.ingestLinks({
-            html,
-            agentId: agent.id,
-            organizationId: organization,
-          });
-        } catch (error) {
-          this.logger.error('Failed to get HTML for link: ' + link, error);
-          throw new HttpException(
-            'Provided link is not a valid URL',
-            HttpStatus.BAD_REQUEST,
-          );
-        }
-      }
-    } else {
-      this.logger.log('Not SPA, skipping puppeteer');
-      const resp = await fetch(links[0], {
-        method: 'GET',
-      });
-      const html = await resp.text();
-      await this.n8nService.ingestLinks({
-        html,
-        agentId: agent.id,
-        organizationId: organization,
-      });
     }
   }
 }

@@ -9,11 +9,17 @@ export class KnowledgeBaseDto {
   type: string;
 
   @ApiProperty({
-    description: 'Array of links',
-    type: [String],
+    description: 'Array of links but stringified',
+    type: Array<{
+      link: string;
+      isSPA: boolean;
+    }>,
     required: false,
   })
-  links?: string[];
+  links?: Array<{
+    url: string;
+    isSPA: boolean;
+  }>;
 
   @ApiProperty({
     description: 'Array of document files',
@@ -30,6 +36,9 @@ export class KnowledgeBaseDto {
 export class CreateWebsiteAgentDto {
   @ApiProperty({ description: 'The name of the agent' })
   agentName: string;
+
+  @ApiProperty({ description: 'The description of the agent' })
+  agentDescription: string;
 
   @ApiProperty({
     description: 'The avatar file of the agent',
@@ -51,6 +60,13 @@ export class CreateWebsiteAgentDto {
     type: KnowledgeBaseDto,
   })
   knowledgeBase: KnowledgeBaseDto;
+
+  @ApiProperty({
+    description: 'The authorized domains of the agent stringified',
+    type: Array<{ url: string }>,
+    required: false,
+  })
+  authorizedDomains?: any;
 
   @ApiProperty({ description: 'The persona of the agent' })
   persona: string;

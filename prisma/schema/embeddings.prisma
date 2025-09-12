@@ -5,5 +5,7 @@
 //   embedding Unsupported("vector") // The vector embedding using pgvector
 
 //   @@map("embeddings")
+//   // ignore because n8n creates this table
+//   @@ignore
 //   @@schema("ai")
 // }
