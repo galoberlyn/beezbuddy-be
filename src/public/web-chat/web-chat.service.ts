@@ -55,10 +55,12 @@ export class WebChatService {
 
     const vectorStore = this.aiModelService.getVectorStore();
     const retriever = vectorStore.asRetriever({
-      k: 6,
+      k: 10,
       filter: {
         organizationId: orgId,
-        agentId: agentId,
+        agentIds: {
+          $in: [agentId],
+        },
       },
     });
 
@@ -124,7 +126,7 @@ export class WebChatService {
       question: createWebChatDto.question,
       product_description: agent.description,
       history: conversationHistory,
-      name: agent.organization.agents[0].name,
+      name: agent.name,
     });
 
     return {
