@@ -40,8 +40,16 @@ export class AgentRepository {
         conversations: true,
         authorizedDomains: true,
         organization: true,
-        links: true,
-        documents: true,
+        knowledgeBases: true,
+      },
+    });
+  }
+
+  findAllByIds(ids: string[], orgId: string): Promise<Agents[]> {
+    return this.databaseService.agents.findMany({
+      where: {
+        id: { in: ids },
+        organizationId: orgId,
       },
     });
   }
@@ -49,19 +57,6 @@ export class AgentRepository {
   async deleteById(id: string, orgId: string) {
     try {
       await this.databaseService.$transaction(async tx => {
-        this.logger.log('deleting agent web links', id, orgId);
-        await tx.agentWebLinks.deleteMany({
-          where: { agentId: id },
-        });
-
-        await tx.conversation.deleteMany({
-          where: { agentId: id },
-        });
-
-        await tx.agentDocuments.deleteMany({
-          where: { agentId: id },
-        });
-
         await tx.agents.delete({
           where: {
             id,
@@ -69,19 +64,24 @@ export class AgentRepository {
           },
         });
 
-        await tx.agentDocuments.deleteMany({
-          where: { agentId: id },
-        });
-
+        // remove the agent id from the embeddings metadata
         await tx.$executeRaw(
           Prisma.sql`
-            DELETE FROM ai."embeddings"
-            WHERE metadata->>'agentId' = ${id}
+            UPDATE ai."embeddings"
+            SET metadata = jsonb_set(
+                metadata,
+                '{agentIds}',
+                (
+                  SELECT jsonb_agg(elem)
+                  FROM jsonb_array_elements_text(metadata->'agentIds') elem
+                  WHERE elem <> ${id}
+                )
+            )
+            WHERE metadata->'agentIds' @> to_jsonb(${id}::text)
             AND metadata->>'organizationId' = ${orgId};
           `,
         );
 
-        // delete firebase records
         await firestore.collection(orgId).doc(id).delete();
       });
 

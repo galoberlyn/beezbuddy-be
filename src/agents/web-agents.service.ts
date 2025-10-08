@@ -6,19 +6,15 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import {
-  CreateWebsiteAgentDto,
-  KnowledgeBaseDto,
-} from './dto/create-website-agent.dto';
+import { CreateWebsiteAgentDto } from './dto/create-website-agent.dto';
 import { S3Service } from 'src/aws/s3/s3.service';
 import { AiModelsService } from 'src/ai-models/ai-models.service';
 import { ModelType } from 'src/ai-models/strategies/strategy-factory';
-import { Agents, AgentType, KnowledgeBaseType, Prisma } from '@prisma/client';
+import { Agents, AgentType, Prisma } from '@prisma/client';
 import { AgentRepository } from './agent.repository';
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { EmbeddingRepository } from 'src/embeddings/embedding.repository';
-import { IngestionService } from 'src/ingestion/ingestion.service';
 import { DatabaseService } from 'src/database/database.service';
 
 const s3Client = new S3Client({
@@ -34,7 +30,6 @@ export class WebAgentsService {
   constructor(
     private readonly s3Service: S3Service,
     private readonly aiModelService: AiModelsService,
-    private readonly ingestionService: IngestionService,
     private readonly agentRepository: AgentRepository,
     private readonly embeddingRepository: EmbeddingRepository,
     private readonly databaseService: DatabaseService,
@@ -47,29 +42,13 @@ export class WebAgentsService {
     orgId: string,
     agentId?: string,
   ) {
-    // Validate required fields
     this.validateRequiredFields(formData);
 
-    // Parse the form data and construct the DTO
     const createWebsiteAgentDto = new CreateWebsiteAgentDto();
 
-    // Extract text fields
-    createWebsiteAgentDto.agentName = formData.agentName as string;
-    createWebsiteAgentDto.agentDescription =
-      formData.agentDescription as string;
-    createWebsiteAgentDto.persona = formData.persona as string;
-    createWebsiteAgentDto.knowledgeBase = new KnowledgeBaseDto();
-
-    if (formData['knowledgeBase.type'] === 'links') {
-      try {
-        createWebsiteAgentDto.knowledgeBase.links = JSON.parse(
-          formData['knowledgeBase.links'],
-        );
-      } catch (error) {
-        this.logger.error(error);
-        throw new BadRequestException('Invalid link payload', error);
-      }
-    }
+    createWebsiteAgentDto.agentName = formData.agentName;
+    createWebsiteAgentDto.agentDescription = formData.agentDescription;
+    createWebsiteAgentDto.persona = formData.persona;
 
     if (formData['authorizedDomains']) {
       createWebsiteAgentDto.authorizedDomains = JSON.parse(
@@ -77,29 +56,13 @@ export class WebAgentsService {
       );
     }
 
-    // Extract knowledge base data
-    createWebsiteAgentDto.knowledgeBase = {
-      type: formData['knowledgeBase.type'],
-      freeText: formData['knowledgeBase.freeText'] as string,
-      links: createWebsiteAgentDto.knowledgeBase.links,
-      documents: [],
-    };
-
-    // Process uploaded files
-    if (createWebsiteAgentDto.knowledgeBase.type === 'documents') {
-      const documents = files.filter(
-        file => file.fieldname === 'knowledgeBase.documents',
-      );
-      if (documents.length > 0) {
-        createWebsiteAgentDto.knowledgeBase.documents = documents;
-      }
-    }
     if (files && files.length > 0) {
       const avatar = files.find(file => file.fieldname === 'avatar');
       if (avatar) {
         createWebsiteAgentDto.avatar = avatar;
       }
     }
+
     if (!agentId) {
       return this.create(createWebsiteAgentDto, orgId);
     }
@@ -115,7 +78,6 @@ export class WebAgentsService {
       s3Url = await this.s3Service.uploadFile(data.avatar, orgId, `/avatar/`);
     }
 
-    // TODO: wrap this in a transaction so we can revert
     const agentPayload: Prisma.AgentsCreateInput = {
       name: data.agentName,
       type: AgentType.website,
@@ -158,17 +120,6 @@ export class WebAgentsService {
     }
   }
 
-  /**
-   * 1. Update agent in db/s3 OK
-   * 2. Update firestore agent status to training WIP
-   * 3. Update ingestion in n8n OK
-   * 4. IF n8n is successful, delete old embedding data and create new embedding in n8n OK
-   * 5. firestore for frontend to let the user know that the agent is ready
-   *
-   * @param id
-   * @param data
-   * @param orgId
-   */
   async updateWebsiteAgent(
     id: string,
     data: CreateWebsiteAgentDto,
@@ -182,9 +133,6 @@ export class WebAgentsService {
     if (!agent) {
       throw new HttpException('Agent not found', HttpStatus.NOT_FOUND);
     }
-    const embeddingsToReplace = await this.embeddingRepository.findByAgentId(
-      agent.id,
-    );
 
     let s3Url: string | null = null;
     if (data.avatar) {
@@ -202,76 +150,15 @@ export class WebAgentsService {
           persona: data.persona,
           description: data.agentDescription,
           avatar: s3Url ? s3Url : agent.avatar,
-          knowledgeBaseType: data.knowledgeBase.type as any,
         },
         where: {
           id: id,
         },
       });
 
-      await tx.agentWebLinks.deleteMany({
-        where: { agentId: id },
-      });
-
-      await tx.agentDocuments.deleteMany({
-        where: { agentId: id },
-      });
-
-      if (data.knowledgeBase.type === 'links' && data.knowledgeBase.links) {
-        await tx.agentWebLinks.createMany({
-          data: data.knowledgeBase.links.map(link => ({
-            link: link.url,
-            isSPA: link.isSPA,
-            agentId: id,
-          })),
-        });
-        await this.ingestionService.processLinksIngestion(
-          data.knowledgeBase.links,
-          orgId,
-          agent,
-          embeddingsToReplace,
-        );
-      }
-
-      if (data.knowledgeBase.type === 'documents') {
-        if (data.knowledgeBase.documents) {
-          const documentUrls =
-            await this.ingestionService.processDocumentIngestion(
-              data,
-              orgId,
-              agent,
-              embeddingsToReplace,
-            );
-
-          if (documentUrls) {
-            await tx.agentDocuments.createMany({
-              data: documentUrls.map(document => ({
-                documentLink: document,
-                agentId: agent.id,
-              })),
-            });
-          }
-        } else {
-          throw new BadRequestException('No documents provided');
-        }
-      }
-
-      if (data.knowledgeBase.type === 'plaintext') {
-        if (data.knowledgeBase.freeText) {
-          await this.ingestionService.processPlainTextIngestion(
-            data,
-            orgId,
-            agent,
-            embeddingsToReplace,
-          );
-        } else {
-          throw new BadRequestException('No knowledge base provided');
-        }
-      }
-
       return {
         message: 'Agent update triggered',
-        data: { ...agent, knowledgeBaseType: data.knowledgeBase.type },
+        data: agent,
       };
     });
   }
@@ -337,16 +224,6 @@ export class WebAgentsService {
 
     if (!agent) {
       throw new NotFoundException('Agent not found');
-    }
-
-    if (agent.knowledgeBaseType === KnowledgeBaseType.plaintext) {
-      const embedding = await this.embeddingRepository.findByAgentId(agent?.id);
-      const content = embedding.map(e => e.text).join('\n');
-
-      return {
-        ...agent,
-        freeText: content,
-      };
     }
 
     return agent;

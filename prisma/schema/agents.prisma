@@ -11,14 +11,6 @@ enum AgentType {
   @@schema("ai")
 }
 
-enum KnowledgeBaseType {
-  links
-  documents
-  plaintext
-
-  @@schema("ai")
-}
-
 enum AgentStatus {
   active
   training
@@ -34,17 +26,15 @@ model Agents {
   type                AgentType
   avatar              String?
   persona             String
-  knowledgeBaseType   KnowledgeBaseType?
   organizationId      String?
   organization        Organization?            @relation(fields: [organizationId], references: [id])
-  links               AgentWebLinks[]          @relation()
   authorizedDomains   AuthorizedAgentDomains[] @relation()
   conversations       Conversation[]           @relation()
   publicConversations PublicConversation[]     @relation()
-  documents           AgentDocuments[]         @relation()
   createdAt           DateTime                 @default(now())
   updatedAt           DateTime                 @updatedAt
   status              AgentStatus              @default(active)
+  knowledgeBases      KnowledgeBase[]          @relation()
 
   @@map("agents")
   @@schema("ai")

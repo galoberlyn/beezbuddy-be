@@ -90,17 +90,15 @@ export class OllamaStrategy implements AIModelStrategy {
   }
 
   private async waitForInitialization(): Promise<void> {
-    let attempts = 0;
-    const maxAttempts = 30; // 30 seconds timeout
-
-    while (!this.isInitialized && attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      attempts++;
-    }
-
-    if (!this.isInitialized) {
-      throw new Error('Models failed to initialize within timeout period');
-    }
+    // let attempts = 0;
+    // const maxAttempts = 30; // 30 seconds timeout
+    // while (!this.isInitialized && attempts < maxAttempts) {
+    //   await new Promise(resolve => setTimeout(resolve, 1000));
+    //   attempts++;
+    // }
+    // if (!this.isInitialized) {
+    //   throw new Error('Models failed to initialize within timeout period');
+    // }
   }
 
   getModelName(): string {

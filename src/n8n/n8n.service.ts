@@ -40,8 +40,8 @@ export class N8nService {
           new File([file.buffer], file.originalname, { type: file.mimetype }),
         );
         console.log('Requesting to ', this.N8N_SERVER_URL + '/upload');
-        formData.append('agentId', data.agentId);
         formData.append('organizationId', data.organizationId);
+        formData.append('agentIds', JSON.stringify(data.agentIds));
         formData.append('embeddingsToReplace', embeddingsToReplace);
         const response = await fetch(this.N8N_SERVER_URL + '/upload', {
           method: 'POST',
@@ -74,7 +74,7 @@ export class N8nService {
 
     const formData = new FormData();
     formData.append('data', data.data);
-    formData.append('agentId', data.agentId);
+    formData.append('agentIds', JSON.stringify(data.agentIds));
     formData.append('organizationId', data.organizationId);
     formData.append('embeddingsToReplace', embeddingsToReplace);
 
@@ -96,9 +96,10 @@ export class N8nService {
 
     const formData = new FormData();
     formData.append('html', data.html);
-    formData.append('agentId', data.agentId);
+    formData.append('knowledgeBaseId', data.knowledgeBaseId);
     formData.append('organizationId', data.organizationId);
     formData.append('embeddingsToReplace', JSON.stringify(data.embeddings));
+    formData.append('agentIds', JSON.stringify(data.agentIds));
 
     console.log('Passing data to ', this.N8N_SERVER_URL + '/scrape');
     const response = await fetch(this.N8N_SERVER_URL + '/scrape', {

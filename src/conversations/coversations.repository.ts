@@ -11,6 +11,9 @@ export class ConversationsRepository {
         userId,
         agentId,
       },
+      include: {
+        agent: true,
+      },
       orderBy: {
         createdAt: 'desc',
       },

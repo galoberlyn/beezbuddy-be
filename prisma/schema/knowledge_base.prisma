@@ -1,0 +1,23 @@
+enum KnowledgeBaseType {
+  links
+  documents
+  plaintext
+
+  @@schema("ai")
+}
+
+model KnowledgeBase {
+  id          String                   @id @default(uuid())
+  name        String
+  description String
+  type        KnowledgeBaseType
+  documents   KnowledgeBaseDocuments[]
+  links       KnowledgeBaseWebLinks[]
+  freeText    String?
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  agents      Agents[]                 @relation()
+
+  @@map("knowledge_base")
+  @@schema("ai")
+}

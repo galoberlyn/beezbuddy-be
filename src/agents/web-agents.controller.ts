@@ -10,7 +10,6 @@ import {
   Param,
   Delete,
   Put,
-  // Patch,
 } from '@nestjs/common';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { WebAgentsService } from './web-agents.service';

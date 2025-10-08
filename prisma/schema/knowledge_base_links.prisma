@@ -1,0 +1,12 @@
+model KnowledgeBaseWebLinks {
+  id              String        @id @default(uuid())
+  knowledgeBaseId String
+  knowledgeBase   KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  link            String
+  isSPA           Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("kb_web_links")
+  @@schema("ai")
+}

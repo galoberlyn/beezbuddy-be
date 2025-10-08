@@ -6,7 +6,7 @@ model Conversation {
   question  String
   answer    String
   agentId   String
-  agent     Agents   @relation(fields: [agentId], references: [id])
+  agent     Agents   @relation(fields: [agentId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id])
 
   @@map("conversations")

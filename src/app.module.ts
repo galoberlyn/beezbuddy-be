@@ -18,6 +18,8 @@ import { N8nModule } from './n8n/n8n.module';
 import { IngestionModule } from './ingestion/ingestion.module';
 import { PgModule } from './database/pg.module';
 import { EmbeddingsModule } from './s2s/embeddings/embeddings.module';
+import { KnowledgeBaseModule } from './knowledge-bases/knowledge-base.module';
+import { FirebaseInternalModule } from './s2s/firebase/firebase-internal.module';
 
 @Module({
   imports: [
@@ -38,6 +40,9 @@ import { EmbeddingsModule } from './s2s/embeddings/embeddings.module';
     IngestionModule,
     PgModule,
     EmbeddingsModule,
+    KnowledgeBaseModule,
+    FirebaseInternalModule,
+    ConversationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -55,7 +55,7 @@ export class WebChatService {
 
     const vectorStore = this.aiModelService.getVectorStore();
     const retriever = vectorStore.asRetriever({
-      k: 4,
+      k: 6,
       filter: {
         organizationId: orgId,
         agentId: agentId,

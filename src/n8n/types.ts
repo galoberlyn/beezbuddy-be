@@ -1,20 +1,21 @@
 export type DocumentIngestionData = {
   files: Express.Multer.File[];
-  agentId: string;
+  agentIds: string[];
   organizationId: string;
   embeddings?: string[];
 };
 
 export type PlainTextIngestionData = {
   data: string;
-  agentId: string;
+  agentIds: string[];
   organizationId: string;
   embeddings?: string[];
 };
 
 export type LinksIngestionData = {
   html: string;
-  agentId: string;
+  knowledgeBaseId: string;
   organizationId: string;
   embeddings?: string[];
+  agentIds: string[];
 };

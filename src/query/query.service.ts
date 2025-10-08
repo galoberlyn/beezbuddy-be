@@ -30,14 +30,18 @@ export class QueryService {
     }
     const vectorStore = this.aiModelService.getVectorStore();
     const retriever = vectorStore.asRetriever({
-      k: 4,
+      k: 6,
       filter: {
         organizationId,
-        agentId,
+        agentIds: {
+          $in: [agentId],
+        },
       } as any,
     });
 
     const retrievedDocs = await retriever.invoke(question);
+    const reranked = await this.rerankDocuments(retrievedDocs, question);
+    const topDocs = reranked.slice(0, 4);
     const org = await this.databaseService.organization.findFirst({
       where: { id: organizationId },
       include: {
@@ -53,7 +57,7 @@ export class QueryService {
       },
     });
 
-    const llmContext = retrievedDocs
+    const llmContext = topDocs
       .map(
         (d, i) =>
           `# Doc ${i + 1}\n${d.pageContent}\nMETA: ${JSON.stringify(d.metadata)}`,
@@ -138,5 +142,31 @@ export class QueryService {
           `Conversation ${index + 1}:\nHuman: ${c.question}\nAssistant: ${c.answer}`,
       )
       .join('\n\n');
+  }
+
+  // --- Helper: rerank by semantic similarity ---
+  private async rerankDocuments(docs, question: string) {
+    if (!docs || docs.length === 0) return [];
+    // Example naive reranker using embeddings:
+    const embeddings = await this.aiModelService.getEmbeddingsModel();
+    const qVec = await embeddings.embedQuery(question);
+
+    const scored = await Promise.all(
+      docs.map(async d => {
+        const dVec = await embeddings.embedQuery(d.pageContent);
+        const score = this.cosineSim(qVec, dVec);
+        return { ...d, score };
+      }),
+    );
+
+    return scored.sort((a, b) => b.score - a.score);
+  }
+
+  // --- Cosine similarity ---
+  private cosineSim(a: number[], b: number[]): number {
+    const dot = a.reduce((sum, val, i) => sum + val * b[i], 0);
+    const normA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0));
+    const normB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0));
+    return dot / (normA * normB);
   }
 }
